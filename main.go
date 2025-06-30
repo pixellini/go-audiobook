@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/pixellini/go-audiobook/epub"
 	"github.com/spf13/viper"
 )
 
@@ -15,8 +16,20 @@ func main() {
 	viper.SetDefault("distDir", "./.dist")
 
 	// Get text/epub file.
+	book, err := epub.New("test/Writing a Compiler in Go - Thorsten Ball.epub")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(book.Title)
+	fmt.Println(book.Author)
+	fmt.Println(book.Description)
+	fmt.Println(book.Language)
+	fmt.Println(book.Introduction)
 
 	// Set up output directories.
+	tempDir := viper.GetString("tempDir")
+	distDir := viper.GetString("distDir")
 
 	// Loop through chapters.
 	// Skip chapter if already created.

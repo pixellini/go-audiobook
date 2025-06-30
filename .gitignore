@@ -38,6 +38,7 @@ Thumbs.db
 # Project specific
 output/
 temp/
+test/
 *.mp3
 *.wav
 *.m4b
