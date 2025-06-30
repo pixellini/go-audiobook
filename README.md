@@ -16,38 +16,6 @@ This repository contains a work-in-progress application designed to transform te
 - **FFmpeg**: For audio processing, format conversion, and audiobook compilation
 - **Go**: Primary programming language for the application logic
 
-## Development Roadmap
-
-### Project Setup
-- [ ] Initialize Go module and project structure
-- [ ] Set up development environment
-- [ ] Configure build system and dependencies
-- [ ] Create basic project documentation
-
-### Core Audio Generation
-- [ ] Implement text-to-speech conversion using Coqui TTS
-- [ ] Add support for multiple voice options and languages
-- [ ] Implement audio quality settings and optimization
-- [ ] Create audio file management and organization
-
-### Audiobook Compilation
-- [ ] Develop chapter-based audio compilation
-- [ ] Implement seamless audio concatenation
-- [ ] Add chapter markers and navigation points
-- [ ] Create audiobook format output (MP3, M4B, etc.)
-
-### Metadata Extraction
-- [ ] Parse EPUB files for book metadata (title, author, chapters)
-- [ ] Extract text content from EPUB documents
-- [ ] Support plain text file processing
-- [ ] Generate audiobook metadata and chapter information
-
-### User Interface
-- [ ] Design and implement web-based frontend
-- [ ] Create intuitive file upload and processing interface
-- [ ] Add progress tracking and status updates
-- [ ] Implement user preferences and settings management
-
 ## Getting Started
 
 Once the project is ready for use, installation and usage instructions will be provided here.
