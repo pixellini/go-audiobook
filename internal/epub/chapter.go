@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/pixellini/go-audiobook/formatter"
+	"github.com/pixellini/go-audiobook/internal/formatter"
 )
 
 // Chapter represents a single chapter in the EPUB book.

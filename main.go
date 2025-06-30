@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pixellini/go-audiobook/epub"
-	"github.com/pixellini/go-audiobook/fsutils"
+	"github.com/pixellini/go-audiobook/internal/epub"
+	"github.com/pixellini/go-audiobook/internal/fsutils"
 	"github.com/spf13/viper"
 )
 

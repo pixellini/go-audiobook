@@ -5,7 +5,7 @@ import (
 	"io"
 	"regexp"
 
-	"github.com/pixellini/go-audiobook/formatter"
+	"github.com/pixellini/go-audiobook/internal/formatter"
 	epubReader "github.com/taylorskalyo/goreader/epub"
 )
 
