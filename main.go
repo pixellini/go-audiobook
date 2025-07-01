@@ -70,7 +70,7 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 	}
 
 	// Loop through chapters.
-	for i, chapter := range epubBook.Chapters[:4] {
+	for i, chapter := range epubBook.Chapters {
 		// Skip chapter if already created.
 		if len(chapter.Paragraphs) == 0 {
 			continue
