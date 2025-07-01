@@ -4,20 +4,45 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/PuerkitoBio/goquery"
+	strip "github.com/grokify/html-strip-tags-go"
 	"github.com/pixellini/go-audiobook/internal/formatter"
 )
 
-// Chapter represents a single chapter in the EPUB book.
 type Chapter struct {
 	Title      string
-	Paragraphs []string // Split-up content
-	RawText    string   // Original, unsplit content
+	Paragraphs []string
+	RawText    string
 }
 
 var chapterHeaderRegex = regexp.MustCompile(`(?i)^(chapter|part|section|page)\s*\d*\.?\s*`)
 
 func createChapter(rawHtmlContent string) Chapter {
-	cleanedContent := formatter.SplitText(formatter.CleanContent(rawHtmlContent))
+	cleanedContent := formatter.SplitText(cleanContent(rawHtmlContent))
+
+	title := getChapterTitle(rawHtmlContent)
+	if title == "" || title == "Converted Ebook" {
+		doc, err := goquery.NewDocumentFromReader(strings.NewReader(rawHtmlContent))
+		if err == nil {
+			heading := ""
+			doc.Find("h1, h2, h3, h4, h5, h6").EachWithBreak(func(i int, s *goquery.Selection) bool {
+				heading = strings.TrimSpace(s.Text())
+				return heading == ""
+			})
+			if heading != "" {
+				title = heading
+			}
+		}
+	}
+
+	if title == "" || title == "Converted Ebook" {
+		for _, line := range cleanedContent {
+			if strings.TrimSpace(line) != "" {
+				title = strings.TrimSpace(line)
+				break
+			}
+		}
+	}
 
 	for i, line := range cleanedContent {
 		if chapterHeaderRegex.MatchString(line) {
@@ -29,7 +54,7 @@ func createChapter(rawHtmlContent string) Chapter {
 	}
 
 	return Chapter{
-		Title:      getChapterTitle(rawHtmlContent),
+		Title:      title,
 		Paragraphs: cleanedContent,
 		RawText:    rawHtmlContent,
 	}
@@ -44,7 +69,6 @@ func getChapterTitle(htmlContent string) string {
 	return ""
 }
 
-// isAcceptedChapterItem determines if an item ID is a section to be included as a chapter.
 // TODO: There may be other acceptable sections and it will need to be investigated.
 func isAcceptedChapterItem(id string) bool {
 	id = strings.ToLower(id)
@@ -54,4 +78,32 @@ func isAcceptedChapterItem(id string) bool {
 		strings.Contains(id, "preface") ||
 		strings.HasPrefix(id, "ch") ||
 		strings.HasPrefix(id, "id")
+}
+
+func cleanContent(htmlContent string) string {
+	htmlContent = regexp.MustCompile(`(?is)<head.*?>.*?</head>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?s)<\?xml.*?\?>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?s)<\?!DOCTYPE.*?\?>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<code.*?>.*?</code>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<pre.*?>.*?</pre>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<kbd.*?>.*?</kbd>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<samp.*?>.*?</samp>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<var.*?>.*?</var>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<figure.*?>.*?</figure>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<script.*?>.*?</script>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<style.*?>.*?</style>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<nav.*?>.*?</nav>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<aside.*?>.*?</aside>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<footer.*?>.*?</footer>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<form.*?>.*?</form>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<svg.*?>.*?</svg>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<object.*?>.*?</object>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<embed.*?>.*?</embed>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<iframe.*?>.*?</iframe>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<table.*?>.*?</table>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<math.*?>.*?</math>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<audio.*?>.*?</audio>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?is)<video.*?>.*?</video>`).ReplaceAllString(htmlContent, "")
+	htmlContent = strings.TrimSpace(htmlContent)
+	return strip.StripTags(htmlContent)
 }

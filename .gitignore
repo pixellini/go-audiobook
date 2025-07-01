@@ -36,13 +36,12 @@ ehthumbs.db
 Thumbs.db
 
 # Project specific
+.dist/
+.temp/
 output/
 temp/
 test/
-*.mp3
-*.wav
-*.m4b
-*.aac
+.env
 
 # Add the bin/ directory to the .gitignore file to ignore all contents of the bin directory
 bin/

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"strings"
 
 	"github.com/pixellini/go-audiobook/internal/formatter"
 	epubReader "github.com/taylorskalyo/goreader/epub"
@@ -116,6 +117,17 @@ func (epub *Epub) setChapters() error {
 
 	// Add the introduction to the beginning of the chapters
 	epub.Chapters = append([]Chapter{introduction}, epub.Chapters...)
+
+	// Remove chapters titled 'contents' or 'table of contents' (case-insensitive, trimmed)
+	filtered := make([]Chapter, 0, len(epub.Chapters))
+	for _, ch := range epub.Chapters {
+		t := strings.TrimSpace(strings.ToLower(ch.Title))
+		if t == "contents" || t == "table of contents" {
+			continue
+		}
+		filtered = append(filtered, ch)
+	}
+	epub.Chapters = filtered
 
 	return nil
 }

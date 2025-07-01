@@ -7,7 +7,6 @@ import (
 	"sort"
 )
 
-// CreateDirIfNotExist creates a directory if it does not exist.
 func CreateDirIfNotExist(dir string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return os.MkdirAll(dir, 0755)
@@ -15,22 +14,11 @@ func CreateDirIfNotExist(dir string) error {
 	return nil
 }
 
-// FileExists returns true if the file exists.
-func FileExists(filePath string) (bool, error) {
-	_, err := os.Stat(filePath)
-
-	if err == nil {
-		return true, nil
-	}
-
-	if os.IsNotExist(err) {
-		return false, nil
-	}
-
-	return false, err
+func FileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil || !os.IsNotExist(err)
 }
 
-// RemoveDirIfEmpty removes the directory if it is empty.
 func RemoveDirIfEmpty(dir string) error {
 	entries, err := os.ReadDir(dir)
 
@@ -45,7 +33,6 @@ func RemoveDirIfEmpty(dir string) error {
 	return nil
 }
 
-// RemoveFilesInDir removes all files and subdirectories in the specified directory.
 func RemoveAllFilesInDir(dir string) error {
 	entries, err := os.ReadDir(dir)
 
@@ -75,7 +62,6 @@ func RemoveFilesFrom(dir string, files []string) error {
 	return nil
 }
 
-// SortFilesNumerically sorts file paths by the number in their base name (e.g., part-1.wav).
 func SortFilesNumerically(filePaths []string) {
 	sort.Slice(filePaths, func(i, j int) bool {
 		var a, b int
@@ -91,7 +77,6 @@ func SortFilesNumerically(filePaths []string) {
 	})
 }
 
-// GetFilesFrom returns a list of files with the given extension in the specified directory.
 func GetFilesFrom(dir, fileType string) ([]string, error) {
 	if fileType == "" {
 		return nil, fmt.Errorf("file type required")
@@ -112,7 +97,6 @@ func GetFilesFrom(dir, fileType string) ([]string, error) {
 	return files, nil
 }
 
-// CreateTempFileListTextFile creates a temporary file listing the given files, one per line, for use with ffmpeg.
 func CreateTempFileListTextFile(files []string, fileName string) (string, error) {
 	listFile, err := os.CreateTemp("", fileName)
 

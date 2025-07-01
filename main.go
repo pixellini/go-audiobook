@@ -2,60 +2,97 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 	"time"
 
+	"github.com/joho/godotenv"
+	"github.com/pixellini/go-audiobook/internal/audiobook"
+	"github.com/pixellini/go-audiobook/internal/audioprocessor"
 	"github.com/pixellini/go-audiobook/internal/epub"
 	"github.com/pixellini/go-audiobook/internal/fsutils"
+	"github.com/pixellini/go-audiobook/internal/tts"
 	"github.com/spf13/viper"
 )
 
 const processingFileType = "wav"
 
-func main() {
-	start := time.Now()
+func loadConfig() {
+	// Load environment variables from .env file if present.
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("No .env file found")
+	}
 
 	// Global variable configuration setup.
 	viper.SetDefault("tempDir", "./.temp")
 	viper.SetDefault("distDir", "./.dist")
+}
 
-	// Get text/epub file.
-	book, err := epub.New("test/Writing a Compiler in Go - Thorsten Ball.epub")
+// Set up output directories.
+func setupDirs() (string, string) {
+	tempDir := viper.GetString("tempDir")
+	distDir := viper.GetString("distDir")
+	fsutils.CreateDirIfNotExist(tempDir)
+	fsutils.CreateDirIfNotExist(distDir)
+	return tempDir, distDir
+}
+
+// Get epub file.
+func getEpubFileAndImage() (*epub.Epub, string) {
+	// Get epub file path from environment variable.
+	epupPath := os.Getenv("EPUB_PATH")
+	if epupPath == "" {
+		panic("EPUB_PATH is not set")
+	}
+
+	// Get image path from environment variable.
+	imgPath := os.Getenv("IMAGE_PATH")
+	if imgPath == "" {
+		// no image set so skip
+	}
+
+	book, err := epub.New(epupPath)
 	if err != nil {
 		panic(err)
 	}
+	return book, imgPath
+}
 
-	fmt.Println(book.Title)
-	fmt.Println(book.Author)
-	fmt.Println(book.Description)
-	fmt.Println(book.Language)
-	fmt.Println(book.Introduction)
+// eg: ./.dist/Book Title-1.wav
+func chapterFilePath(distDir, bookTitle string, chapterIdx int) string {
+	return fmt.Sprintf("%s/%s-%d.%s", distDir, bookTitle, chapterIdx, processingFileType)
+}
 
-	// Set up output directories.
-	tempDir := viper.GetString("tempDir")
-	distDir := viper.GetString("distDir")
-
-	fsutils.CreateDirIfNotExist(tempDir)
-	fsutils.CreateDirIfNotExist(distDir)
+func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobook, tempDir string, distDir string) {
+	if len(epubBook.Chapters) == 0 {
+		panic("No chapters found in epub file")
+	}
 
 	// Loop through chapters.
-	for i, chapter := range book.Chapters {
+	for i, chapter := range epubBook.Chapters[:4] {
 		// Skip chapter if already created.
 		if len(chapter.Paragraphs) == 0 {
 			continue
 		}
 
-		// eg: ./.dist/Chapter Name-1.wav
-		chapterFile := fmt.Sprintf("%s/%s-%d.wav", distDir, book.Title, i)
+		// eg: ./.dist/Book Title-1.wav
+		chapterFile := chapterFilePath(distDir, epubBook.Title, i)
 
 		// Check if the chaper was already in progress.
-		if _, err := fsutils.FileExists(chapterFile); err != nil {
+		// We can do this by checking if the .wav file has already been created.
+		if fsutils.FileExists(chapterFile) {
+			Audiobook.AddChapter(audiobook.AudiobookChapter{
+				Title: chapter.Title,
+				File:  chapterFile,
+			})
 			fmt.Println(chapterFile, "already exists. Skipping.")
 			continue
 		}
 
 		// Split the chapter into audio segments
 		fmt.Println("Processing Chapter:", chapter.Title)
-		// process here...
+		tts.SynthesizeTextList(chapter.Paragraphs, epubBook.Language)
 
 		// Output segments as .wav files
 		chapterAudioSegmentFiles, err := fsutils.GetFilesFrom(tempDir, processingFileType)
@@ -65,25 +102,46 @@ func main() {
 
 		fsutils.SortFilesNumerically(chapterAudioSegmentFiles)
 
-		// Concat .wav segments into a singular .wav file
-		// chapter creation...
+		// Combine all .wav paragraph files into a singular .wav file
+		// This will become our Chapter wav file.
+		err = audioprocessor.ConcatFiles(epubBook.Title, chapterAudioSegmentFiles, chapterFile)
+		if err != nil {
+			panic(err)
+		}
 
-		// Remove .wav segments
+		Audiobook.AddChapter(audiobook.AudiobookChapter{
+			Title: chapter.Title,
+			File:  chapterFile,
+		})
+
+		// Remove .wav paragraph files
 		fsutils.RemoveAllFilesInDir(tempDir)
 	}
+}
 
-	chapterAudioFiles, err := fsutils.GetFilesFrom(distDir, processingFileType)
+func main() {
+	start := time.Now()
+
+	loadConfig()
+
+	book, image := getEpubFileAndImage()
+
+	audiobook := audiobook.NewFromEpub(book, image)
+
+	tempDir, distDir := setupDirs()
+
+	generateChapterAudioFiles(book, audiobook, tempDir, distDir)
+
+	// After adding chapters, print the count and file paths
+	fmt.Println("Number of chapters added:", len(audiobook.Chapters))
+	for _, ch := range audiobook.Chapters {
+		fmt.Println("Chapter file:", ch.File)
+	}
+
+	// Combine all chapter .wav files FFmpeg.
+	err := audiobook.Generate(distDir)
 	if err != nil {
 		panic(err)
-	}
-	// Combine all chapter .wav files FFmpeg.
-
-	// Insert audiobook metadata and image.
-
-	// Remove chapter .wav files
-	err = fsutils.RemoveFilesFrom(distDir, chapterAudioFiles)
-	if err != nil {
-		fmt.Println("Unable to remove chapter audio files from dist directory.")
 	}
 
 	// Delete temp files.
