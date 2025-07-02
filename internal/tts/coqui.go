@@ -2,29 +2,26 @@ package tts
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 
 	"github.com/pixellini/go-audiobook/internal/formatter"
+	"github.com/spf13/viper"
 )
 
-/*
-This is a temporary solution for text-to-speech using Coqui TTS via command line execution.
-Proper integration of Coqui TTS into Go is pending and will replace this approach in the future.
-*/
+// Basically a Coqui TTS wrapper
 func coquiTextToSpeechXTTS(text, language, outputFile string) ([]byte, error) {
 	fmt.Println("Processing:", text)
 	language = formatter.FormatToStandardLanguage(language)
 
-	speaker := os.Getenv("SPEAKER")
-	if speaker == "" {
-		panic("SPEAKER is not set")
+	speakerWav := viper.GetString("speaker_wav")
+	if speakerWav == "" {
+		panic("Missing required config value: 'speaker_wav' in config.json")
 	}
 
 	cmd := exec.Command("tts",
 		"--text", text,
 		"--model_name", "tts_models/multilingual/multi-dataset/xtts_v2",
-		"--speaker_wav", "./speakers/"+speaker,
+		"--speaker_wav", speakerWav,
 		"--language_idx", language,
 		"--out_path", outputFile,
 	)

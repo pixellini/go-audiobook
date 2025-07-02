@@ -1,0 +1,6 @@
+{
+  "epub_path": "./book/book.epub",
+  "image_path": "./book/cover.png",
+  "speaker_wav": "./speakers/speaker.wav",
+  "dist_dir": "./.dist"
+} 

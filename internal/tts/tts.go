@@ -25,7 +25,7 @@ func SynthesizeText(text, language, outputFile string) error {
 }
 
 func SynthesizeTextList(paragraphs []string, language string) {
-	tempDir := viper.GetString("tempDir")
+	tempDir := viper.GetString("temp_dir")
 
 	for i, content := range paragraphs {
 		index := i + 1

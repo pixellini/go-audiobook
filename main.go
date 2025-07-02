@@ -3,10 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/pixellini/go-audiobook/internal/audiobook"
 	"github.com/pixellini/go-audiobook/internal/audioprocessor"
 	"github.com/pixellini/go-audiobook/internal/epub"
@@ -18,21 +16,22 @@ import (
 const processingFileType = "wav"
 
 func loadConfig() {
-	// Load environment variables from .env file if present.
-	err := godotenv.Load()
-	if err != nil {
-		log.Println("No .env file found")
+	viper.SetConfigName("config")
+	viper.SetConfigType("json")
+	viper.AddConfigPath(".")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatalf("Error reading config file: %v", err)
 	}
 
-	// Global variable configuration setup.
-	viper.SetDefault("tempDir", "./.temp")
-	viper.SetDefault("distDir", "./.dist")
+	// Set default values if not present in config.
+	viper.SetDefault("image_path", "")
+	viper.SetDefault("temp_dir", "./.temp")
 }
 
 // Set up output directories.
 func setupDirs() (string, string) {
-	tempDir := viper.GetString("tempDir")
-	distDir := viper.GetString("distDir")
+	tempDir := viper.GetString("temp_dir")
+	distDir := viper.GetString("dist_dir")
 	fsutils.CreateDirIfNotExist(tempDir)
 	fsutils.CreateDirIfNotExist(distDir)
 	return tempDir, distDir
@@ -40,14 +39,14 @@ func setupDirs() (string, string) {
 
 // Get epub file.
 func getEpubFileAndImage() (*epub.Epub, string) {
-	// Get epub file path from environment variable.
-	epupPath := os.Getenv("EPUB_PATH")
+	// Get epub file path from config.
+	epupPath := viper.GetString("epub_path")
 	if epupPath == "" {
-		panic("EPUB_PATH is not set")
+		panic("Missing required config value: 'epub_path' in config.json")
 	}
 
-	// Get image path from environment variable.
-	imgPath := os.Getenv("IMAGE_PATH")
+	// Get image path from config.
+	imgPath := viper.GetString("image_path")
 	if imgPath == "" {
 		// no image set so skip
 	}
@@ -70,7 +69,7 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 	}
 
 	// Loop through chapters.
-	for i, chapter := range epubBook.Chapters {
+	for i, chapter := range epubBook.Chapters[:4] {
 		// Skip chapter if already created.
 		if len(chapter.Paragraphs) == 0 {
 			continue
