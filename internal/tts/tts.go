@@ -35,7 +35,7 @@ func SynthesizeText(text, language, outputFile string) error {
 			return nil
 		}
 
-		lastErr = fmt.Errorf("error generating audiobook for %s: %v", outputFile, err)
+		lastErr = err
 		log.Printf("TTS failed — (attempt %d/%d)\n", attempt, maxRetries)
 
 		if verbose {
