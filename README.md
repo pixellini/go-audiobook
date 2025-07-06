@@ -64,11 +64,13 @@ The application is configured using a `config.json` file in the project root. Be
 |-----------------------|---------|-----------------------------------------------------------------------------|
 | `epub_path`           | string  | Path to the input EPUB file.                                                |
 | `image_path`          | string  | Path to the cover image for the audiobook.                                  |
-| `speaker_wav`         | string  | Path to the narrator's voice sample (.wav or .mp3).                         |
+| `speaker_wav`         | string  | Path to the narrator's voice sample (`.wav` or `.mp3`).                         |
 | `dist_dir`            | string  | Output directory for generated audiobook files.                             |
-| `verbose_logs`        | bool    | If true, enables detailed error and debug logs.                             |
-| `tts.max_retries`     | int     | Number of times to retry TTS synthesis on failure (default: 1 if not set).  |
+| `verbose_logs`        | bool    | If `true`, enables detailed error and debug logs.                             |
+| `tts.max_retries`     | int     | Number of times to retry TTS synthesis on failure.  |
 | `tts.parallel_audio_count`  | int     | Number of audio files to generate in parallel (see recommendations below).  |
+| `tts.use_vits`         | bool    | If `true`, uses the VITS model for TTS.           |
+| `tts.vits_voice`       | string  | VITS voice id. Only used if `tts.use_vits` is `true`.                           |
 
 ### Example `config.json`
 
@@ -81,7 +83,9 @@ The application is configured using a `config.json` file in the project root. Be
   "verbose_logs": false,
   "tts": {
     "max_retries": 3,
-    "parallel_audio_count": 4
+    "parallel_audio_count": 4,
+    "use_vits": false,
+    "vits_voice": "p287"
   }
 }
 ```
