@@ -15,7 +15,6 @@ const vitsModelName = "tts_models/en/vctk/vits"
 // Coqui TTS wrapper for XTTS
 func coquiTextToSpeechXTTS(text, language, outputFile string) ([]byte, error) {
 	fmt.Println("Processing (XTTS):", text)
-	language = formatter.FormatToStandardLanguage(language)
 
 	speakerWav := viper.GetString("speaker_wav")
 	if speakerWav == "" {
@@ -39,7 +38,7 @@ func coquiTextToSpeechXTTS(text, language, outputFile string) ([]byte, error) {
 }
 
 // Coqui TTS wrapper for VITS
-func coquiTextToSpeechVITS(text, outputFile string, voice string) ([]byte, error) {
+func coquiTextToSpeechVITS(text, outputFile, voice string) ([]byte, error) {
 	fmt.Println("Processing (VITS):", text)
 
 	cmd := exec.Command("tts",
@@ -58,17 +57,22 @@ func coquiTextToSpeechVITS(text, outputFile string, voice string) ([]byte, error
 	return output, nil
 }
 
-// Unified Coqui TTS function
+// Note: The "language" parameter will only used by XTTS (not VITS).
+// For VITS, only English is supported, therefore the EPUB language must be in English.
 func coquiTextToSpeech(text, language, outputFile string) ([]byte, error) {
+	language = formatter.FormatToStandardLanguage(language)
 	useVitsModel := viper.GetBool("tts.use_vits")
 
 	if useVitsModel {
-		voice := viper.GetString("tts.vits_voice")
+		// VITS only supports English. Panic if language is not English.
+		if language != "en" {
+			panic("The VITS model currently only supports English, please make sure your EPUB is in English.")
+		}
 
+		voice := viper.GetString("tts.vits_voice")
 		if voice == "" {
 			voice = defaultVitsVoice
 		}
-
 		return coquiTextToSpeechVITS(text, outputFile, voice)
 	}
 
