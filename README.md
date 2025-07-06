@@ -55,15 +55,6 @@ On Ubuntu/Debian:
 sudo apt install ffmpeg
 ```
 
-### 🎤 Providing a Narrator Voice (.wav)
-
-You can customise your audiobook by providing a short audio sample of your chosen narrator's voice. This sample will be used as the voice for the entire audiobook, allowing you to generate content in any of the available languages. Coqui TTS synthesises speech using the unique vocal characteristics from the sample, not the spoken content.
-
-- **Recommended length:** 1–3 minutes of clear, uninterrupted speech is usually enough for high-quality results. Samples longer than 3 minutes may increase processing time. If you have a powerful machine, you can experiment with longer inputs, but 3 minutes is sufficient for most cases. 
-- **File format:** A `.wav` file is preferred for best audio quality. `.mp3` is also supported, and while it can speed up processing time, it may reduce quality.
-- **Setup:** Place your audio file in the `speakers/` directory and update the `speaker_wav` path in your `config.json` accordingly.  
-
-> 📝 **Note:** The spoken language in the sample doesn't affect the output. Coqui will synthesise your audiobook in the target language using the voice's characteristics from the sample.
 
 ## ⚙️ Configuration
 
@@ -97,11 +88,49 @@ The application is configured using a `config.json` file in the project root. Be
 
 > **Note:** All paths are relative to the project root unless otherwise specified.
 
-## ⚡️ Optimising Audiobook Creation
+## 🧩 Guide & Customisation
+
+### 🎤 Providing a Narrator Voice (.wav)
+
+You can customise your audiobook by providing a short audio sample of your chosen narrator's voice. This sample will be used as the voice for the entire audiobook, allowing you to generate content in any of the available languages. Coqui TTS synthesises speech using the unique vocal characteristics from the sample, not the spoken content.
+
+- **Recommended length:** 1–3 minutes of clear, uninterrupted speech is usually enough for high-quality results. Samples longer than 3 minutes may increase processing time. If you have a powerful machine, you can experiment with longer inputs, but 3 minutes is sufficient for most cases. 
+- **File format:** A `.wav` file is preferred for best audio quality. `.mp3` is also supported, and while it can speed up processing time, it may reduce quality.
+- **Setup:** Place your audio file in the `speakers/` directory and update the `speaker_wav` path in your `config.json` accordingly.  
+
+> 📝 **Note:** The spoken language in the sample doesn't affect the output. Coqui will synthesise your audiobook in the target language using the voice's characteristics from the sample.
+
+### 🏎️ VITS Model
+
+The VITS model (`tts_models/en/vctk/vits`) offers a much faster and more convenient way to generate audiobooks compared to XTTS with a custom `.wav` speaker file. With VITS, you simply select a voice by id (e.g. `p287`).
+
+> **Performance Note:** VITS can be approximately 80% faster (or more) than XTTS with a `.wav` speaker.
+
+#### 🎤 Choosing a VITS Voice
+To see all available voices for the VITS model, run:
+
+```bash
+tts --model_name "tts_models/en/vctk/vits" --list_speaker_idxs
+```
+
+| Voice # | Gender | Description                                    |
+| ------- | ------ | ---------------------------------------------- |
+| p340    | Male   | Lively, expressive, clear communicator         |
+| p330    | Male   | Authoritative, composed, documentary style     |
+| p306    | Female | Composed, articulate, quick paced              |
+| p287    | Male   | Deep-toned, resonant, cinematic                |
+| p285    | Male   | Soft-spoken, measured, contemplative           |
+| p267    | Male   | Intense, dramatic, grand, epic fantasy feel    |
+| p262    | Male   | Introspective, philosophical, warm-hearted     |
+| p258    | Male   | Formal, precise, analytical, newsreader style  |
+
+Experiment with different voices to find the best fit for your audiobook!
+
+### ⚡️ Optimising Audiobook Creation
 
 Go's concurrency makes it easy to speed up audiobook generation by running multiple text-to-speech processes in parallel. The `tts.parallel_audio_count` setting controls how many TTS operations run at once. Raising this value reduces processing time but increases CPU usage, heat, and fan noise 🥵
 
-### Choosing the Right Parallel Audio Value
+#### Choosing the Right Parallel Audio Value
 Set `tts.parallel_audio_count` to slightly below your machine's physical core count for the best results (unless you're also mining crypto, in which case... good luck).
 
 **MacBook M1 Pro Example (with 10 cores):**
@@ -109,7 +138,7 @@ Set `tts.parallel_audio_count` to slightly below your machine's physical core co
   - Balanced: `3–5`
   - Maximum: `6-8`
 
-### Check Your CPU Core Count:
+#### Check Your CPU Core Count:
 **macOS:**
 ```bash
 sysctl -n hw.physicalcpu
@@ -123,7 +152,7 @@ nproc --all
 WMIC CPU Get NumberOfCores
 ```
 
-### Why Not Exceed Core Count?
+#### Why Not Exceed Core Count?
 Setting `tts.parallel_audio_count` higher than your number of physical cores usually doesn't improve performance. It can make your system less responsive, increase heat and fan noise, and may cause CPU throttling.
 
 > 💡 **Tip:** Start low (2–4), then increase if your system handles it well.

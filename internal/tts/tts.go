@@ -30,7 +30,7 @@ func SynthesizeText(text, language, outputFile string) error {
 	var lastErr error
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		output, err := coquiTextToSpeechXTTS(text, language, outputFile)
+		output, err := coquiTextToSpeech(text, language, outputFile)
 		if err == nil {
 			return nil
 		}
