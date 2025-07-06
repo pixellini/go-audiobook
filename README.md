@@ -16,8 +16,7 @@ This repository hosts a work-in-progress tool that transforms plain text and EPU
 - 📄 Support for reading plain .txt files  
 - ⚙️ Concurrent TTS file generation for faster processing  
 - 🚀 Enhanced Coqui integration, including GPU acceleration if available  
-- 🧠 Coqui VITS support for quicker audiobook creation  
-- 🔁 Automatic retries for failed paragraph TTS synthesis  
+- 🧠 Coqui VITS support for quicker audiobook creation   
 - 📦 Containerise inside Docker  
 - 🎧 MP3 output and conversion support  
 - ⏳ Progress tracking with estimated time remaining  
@@ -66,6 +65,36 @@ You can customise your audiobook by providing a short audio sample of your chose
 - **Setup:** Place your audio file in the `speakers/` directory and update the `speaker_wav` path in your `config.json` accordingly.  
 
 > **Note:** The spoken language in the sample doesn't affect the output. Coqui will synthesise your audiobook in the target language using the voice's characteristics from the sample.
+
+## ⚙️ Configuration
+
+The application is configured using a `config.json` file in the project root. Below are the available options:
+
+| Option                | Type    | Description                                                                 |
+|-----------------------|---------|-----------------------------------------------------------------------------|
+| `epub_path`           | string  | Path to the input EPUB file.                                                |
+| `image_path`          | string  | Path to the cover image for the audiobook.                                  |
+| `speaker_wav`         | string  | Path to the narrator's voice sample (.wav or .mp3).                         |
+| `dist_dir`            | string  | Output directory for generated audiobook files.                             |
+| `verbose_logs`        | bool    | If true, enables detailed error and debug logs.                             |
+| `tts.max_retries`     | int     | Number of times to retry TTS synthesis on failure (default: 1 if not set).  |
+
+### Example `config.json`
+
+```json
+{
+  "epub_path": "./book/book.epub",
+  "image_path": "./book/cover.png",
+  "speaker_wav": "./speakers/speaker.wav",
+  "dist_dir": "./.dist",
+  "verbose_logs": false,
+  "tts": {
+    "max_retries": 3
+  }
+}
+```
+
+> **Note:** All paths are relative to the project root unless otherwise specified.
 
 ## ⚖️ Terms of Use & Disclaimer
 

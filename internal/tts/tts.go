@@ -2,12 +2,15 @@ package tts
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
 	"github.com/pixellini/go-audiobook/internal/fsutils"
 	"github.com/spf13/viper"
 )
+
+const defaultMaxRetries = 1
 
 func SynthesizeText(text, language, outputFile string) error {
 	_, err := os.Stat(outputFile)
@@ -16,12 +19,33 @@ func SynthesizeText(text, language, outputFile string) error {
 		return nil
 	}
 
-	output, err := coquiTextToSpeechXTTS(text, language, outputFile)
-	if err != nil {
-		return fmt.Errorf("error generating audiobook for %s: %v, output: %s", outputFile, err, string(output))
+	maxRetries := viper.GetInt("tts.max_retries")
+	if maxRetries < defaultMaxRetries {
+		maxRetries = defaultMaxRetries
 	}
 
-	return nil
+	verbose := viper.GetBool("verbose_logs")
+	var lastErr error
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		output, err := coquiTextToSpeechXTTS(text, language, outputFile)
+		if err == nil {
+			return nil
+		}
+
+		lastErr = fmt.Errorf("error generating audiobook for %s: %v", outputFile, err)
+		log.Printf("TTS failed — (attempt %d/%d)\n", attempt, maxRetries)
+
+		if verbose {
+			fmt.Printf("Output: %s\n", string(output))
+		}
+	}
+
+	if verbose && lastErr != nil {
+		fmt.Println(lastErr)
+	}
+
+	return lastErr
 }
 
 func SynthesizeTextList(paragraphs []string, language string) {
