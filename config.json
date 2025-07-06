@@ -6,6 +6,7 @@
   "verbose_logs": false,
   "tts": {
     "max_retries": 3,
-    "parallel_audio_count": 1
+    "use_vits": false,
+    "vits_voice": "p287"
   }
 }

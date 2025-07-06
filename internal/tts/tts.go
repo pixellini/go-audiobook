@@ -30,12 +30,12 @@ func SynthesizeText(text, language, outputFile string) error {
 	var lastErr error
 
 	for attempt := 1; attempt <= maxRetries; attempt++ {
-		output, err := coquiTextToSpeechXTTS(text, language, outputFile)
+		output, err := coquiTextToSpeech(text, language, outputFile)
 		if err == nil {
 			return nil
 		}
 
-		lastErr = fmt.Errorf("error generating audiobook for %s: %v", outputFile, err)
+		lastErr = err
 		log.Printf("TTS failed — (attempt %d/%d)\n", attempt, maxRetries)
 
 		if verbose {
