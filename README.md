@@ -12,10 +12,8 @@ This repository hosts a work-in-progress tool that transforms plain text and EPU
 
 ### 🛠️ Feature List
 
-- 🗣️ Default speaker option  
 - 📄 Support for reading plain .txt files  
 - 🚀 Enhanced Coqui integration, including GPU acceleration if available  
-- 🧠 Coqui VITS support for quicker audiobook creation   
 - 📦 Containerise inside Docker  
 - 🎧 MP3 output and conversion support  
 - ⏳ Progress tracking with estimated time remaining  
