@@ -7,10 +7,12 @@ import (
 	"path/filepath"
 
 	"github.com/pixellini/go-audiobook/internal/fsutils"
+	"github.com/pixellini/go-audiobook/internal/utils"
 	"github.com/spf13/viper"
 )
 
 const defaultMaxRetries = 1
+const defaultParallelAudioCount = 1
 
 func SynthesizeText(text, language, outputFile string) error {
 	_, err := os.Stat(outputFile)
@@ -51,18 +53,23 @@ func SynthesizeText(text, language, outputFile string) error {
 func SynthesizeTextList(paragraphs []string, language string) {
 	tempDir := viper.GetString("temp_dir")
 
-	for i, content := range paragraphs {
+	parallelAudioCount := viper.GetInt("tts.parallel_audio_count")
+	if parallelAudioCount < defaultParallelAudioCount {
+		parallelAudioCount = defaultParallelAudioCount
+	}
+
+	utils.ParallelForEach(paragraphs, parallelAudioCount, func(i int, content string) {
 		index := i + 1
 		filename := fmt.Sprintf("part-%d.wav", index)
 		outputAudioFile := filepath.Join(tempDir, filename)
 
 		if fsutils.FileExists(outputAudioFile) {
 			fmt.Println("Skipping audio file:", filename)
-			continue
+			return
 		}
 
 		if err := SynthesizeText(content, language, outputAudioFile); err != nil {
 			fmt.Printf("Error processing part %d: %v\n", index, err)
 		}
-	}
+	})
 }

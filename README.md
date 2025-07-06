@@ -14,7 +14,6 @@ This repository hosts a work-in-progress tool that transforms plain text and EPU
 
 - 🗣️ Default speaker option  
 - 📄 Support for reading plain .txt files  
-- ⚙️ Concurrent TTS file generation for faster processing  
 - 🚀 Enhanced Coqui integration, including GPU acceleration if available  
 - 🧠 Coqui VITS support for quicker audiobook creation   
 - 📦 Containerise inside Docker  
@@ -64,7 +63,7 @@ You can customise your audiobook by providing a short audio sample of your chose
 - **File format:** A `.wav` file is preferred for best audio quality. `.mp3` is also supported, and while it can speed up processing time, it may reduce quality.
 - **Setup:** Place your audio file in the `speakers/` directory and update the `speaker_wav` path in your `config.json` accordingly.  
 
-> **Note:** The spoken language in the sample doesn't affect the output. Coqui will synthesise your audiobook in the target language using the voice's characteristics from the sample.
+> 📝 **Note:** The spoken language in the sample doesn't affect the output. Coqui will synthesise your audiobook in the target language using the voice's characteristics from the sample.
 
 ## ⚙️ Configuration
 
@@ -78,6 +77,7 @@ The application is configured using a `config.json` file in the project root. Be
 | `dist_dir`            | string  | Output directory for generated audiobook files.                             |
 | `verbose_logs`        | bool    | If true, enables detailed error and debug logs.                             |
 | `tts.max_retries`     | int     | Number of times to retry TTS synthesis on failure (default: 1 if not set).  |
+| `tts.parallel_audio_count`  | int     | Number of audio files to generate in parallel (see recommendations below).  |
 
 ### Example `config.json`
 
@@ -89,12 +89,45 @@ The application is configured using a `config.json` file in the project root. Be
   "dist_dir": "./.dist",
   "verbose_logs": false,
   "tts": {
-    "max_retries": 3
+    "max_retries": 3,
+    "parallel_audio_count": 4
   }
 }
 ```
 
 > **Note:** All paths are relative to the project root unless otherwise specified.
+
+## ⚡️ Optimising Audiobook Creation
+
+Go's concurrency makes it easy to speed up audiobook generation by running multiple text-to-speech processes in parallel. The `tts.parallel_audio_count` setting controls how many TTS operations run at once. Raising this value reduces processing time but increases CPU usage, heat, and fan noise 🥵
+
+### Choosing the Right Parallel Audio Value
+Set `tts.parallel_audio_count` to slightly below your machine's physical core count for the best results (unless you're also mining crypto, in which case... good luck).
+
+**MacBook M1 Pro Example (with 10 cores):**
+  - Minimal: `1–2`
+  - Balanced: `3–5`
+  - Maximum: `6-8`
+
+### Check Your CPU Core Count:
+**macOS:**
+```bash
+sysctl -n hw.physicalcpu
+```
+**Linux:**
+```bash
+nproc --all
+```
+**Windows (Command Prompt or PowerShell):**
+```powershell
+WMIC CPU Get NumberOfCores
+```
+
+### Why Not Exceed Core Count?
+Setting `tts.parallel_audio_count` higher than your number of physical cores usually doesn't improve performance. It can make your system less responsive, increase heat and fan noise, and may cause CPU throttling.
+
+> 💡 **Tip:** Start low (2–4), then increase if your system handles it well.
+
 
 ## ⚖️ Terms of Use & Disclaimer
 
