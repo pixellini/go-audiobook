@@ -15,7 +15,6 @@ This repository hosts a work-in-progress tool that transforms plain text and EPU
 - 📄 Support for reading plain .txt files  
 - 🚀 Enhanced Coqui integration, including GPU acceleration if available  
 - 📦 Containerise inside Docker  
-- 🎧 MP3 output and conversion support  
 - ⏳ Progress tracking with estimated time remaining  
 - 🌐 Basic web interface (potentially using WASM)  
 
@@ -58,17 +57,18 @@ sudo apt install ffmpeg
 
 The application is configured using a `config.json` file in the project root. Below are the available options:
 
-| Option                | Type    | Description                                                                 |
-|-----------------------|---------|-----------------------------------------------------------------------------|
-| `epub_path`           | string  | Path to the input EPUB file.                                                |
-| `image_path`          | string  | Path to the cover image for the audiobook.                                  |
-| `speaker_wav`         | string  | Path to the narrator's voice sample (`.wav` or `.mp3`).                         |
-| `dist_dir`            | string  | Output directory for generated audiobook files.                             |
-| `verbose_logs`        | bool    | If `true`, enables detailed error and debug logs.                             |
-| `tts.max_retries`     | int     | Number of times to retry TTS synthesis on failure.  |
-| `tts.parallel_audio_count`  | int     | Number of audio files to generate in parallel (see recommendations below).  |
-| `tts.use_vits`         | bool    | If `true`, uses the VITS model for TTS.           |
-| `tts.vits_voice`       | string  | VITS voice id. Only used if `tts.use_vits` is `true`.                           |
+| Option                | Type    | Accepted Values                | Description                                                                 |
+|-----------------------|---------|--------------------------------|-----------------------------------------------------------------------------|
+| `epub_path`           | string  | –                              | Path to the input EPUB file.                                                |
+| `image_path`          | string  | –                              | Path to the cover image for the audiobook.                                  |
+| `speaker_wav`         | string  | –                              | Path to the narrator's voice sample (`.wav` or `.mp3`).                     |
+| `dist_dir`            | string  | –                              | Output directory for generated audiobook files.                             |
+| `output_format`       | string  | `m4b`, `mp3`, `m4a`, `wav`     | Output file format: `m4b` (default), `mp3`, `m4a` (AAC), or `wav`. See below for details. |
+| `verbose_logs`        | bool    | -                              | If `true`, enables detailed error and debug logs.                           |
+| `tts.max_retries`     | int     | –                              | Number of times to retry TTS synthesis on failure.                          |
+| `tts.parallel_audio_count`  | int     | –                              | Number of audio files to generate in parallel (see recommendations below).  |
+| `tts.use_vits`        | bool    | -                              | If `true`, uses the VITS model for TTS.                                     |
+| `tts.vits_voice`      | string  | e.g. `p287`, `p330`            | VITS voice id. Only used if `tts.use_vits` is `true`.                       |
 
 ### Example `config.json`
 
@@ -78,6 +78,7 @@ The application is configured using a `config.json` file in the project root. Be
   "image_path": "./book/cover.png",
   "speaker_wav": "./speakers/speaker.wav",
   "dist_dir": "./.dist",
+  "output_format": "m4b",
   "verbose_logs": false,
   "tts": {
     "max_retries": 3,
