@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pixellini/go-audiobook/internal/fsutils"
+	"github.com/pixellini/go-audiobook/internal/utils"
 )
 
 type FileOptions struct {
@@ -45,8 +46,7 @@ func ConcatFiles(title string, files []string, output string) error {
 		output,
 	)
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	utils.LogCommandIfVerbose(cmd)
 
 	err = cmd.Run()
 	if err != nil {
@@ -88,8 +88,8 @@ func CreateFile(fileOptions FileOptions, extension OutputFileFormat, additionalO
 	cmdArgs = append(cmdArgs, outputFile)
 
 	cmd := exec.Command("ffmpeg", cmdArgs...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	utils.LogCommandIfVerbose(cmd)
 
 	err := cmd.Run()
 	if err != nil {
@@ -151,14 +151,19 @@ func CreateWAVFile(fileOptions FileOptions) error {
 func CreateFileFromFormat(format OutputFileFormat, fileOptions FileOptions) error {
 	switch format {
 	case OutputFormatMP3:
+		fmt.Println("Creating MP3 file...")
 		return CreateMP3File(fileOptions)
 	case OutputFormatAAC:
+		fmt.Println("Creating AAC file...")
 		return CreateAACFile(fileOptions)
 	case OutputFormatWAV:
+		fmt.Println("Creating WAV file...")
 		return CreateWAVFile(fileOptions)
 	case OutputFormatM4B:
-		fallthrough
+		fmt.Println("Creating M4B file...")
+		return CreateM4BFile(fileOptions)
 	default:
+		fmt.Printf("Format '%s' is not supported. Defaulting to M4B\n", format)
 		return CreateM4BFile(fileOptions)
 	}
 }

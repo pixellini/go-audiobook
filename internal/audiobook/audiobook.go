@@ -42,6 +42,7 @@ func (a *Audiobook) AddChapter(chapter AudiobookChapter) {
 func (a *Audiobook) Generate(outputDir string) error {
 	outputFormat := audioprocessor.OutputFileFormat(viper.GetString("output_format"))
 	if outputFormat == "" {
+		fmt.Println("No format specified, defaulting to M4B")
 		outputFormat = audioprocessor.DefaultOutputFormat
 	}
 

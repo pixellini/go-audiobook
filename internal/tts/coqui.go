@@ -8,16 +8,21 @@ import (
 	"github.com/spf13/viper"
 )
 
+type TTSModel string
+
+const (
+	ModelXTTS TTSModel = "XTTS"
+	ModelVITS TTSModel = "VITS"
+)
 const defaultVitsVoice = "p287"
 const xttsModelName = "tts_models/multilingual/multi-dataset/xtts_v2"
 const vitsModelName = "tts_models/en/vctk/vits"
 
-// Coqui TTS wrapper for XTTS
 func coquiTextToSpeechXTTS(text, language, outputFile string) ([]byte, error) {
-	fmt.Println("Processing (XTTS):", text)
+	fmt.Println("Processing:", text)
 
 	speakerWav := viper.GetString("speaker_wav")
-	if speakerWav == "" {
+	if !viper.IsSet(speakerWav) {
 		panic("Missing required config value: 'speaker_wav' in config.json")
 	}
 
@@ -37,9 +42,8 @@ func coquiTextToSpeechXTTS(text, language, outputFile string) ([]byte, error) {
 	return output, nil
 }
 
-// Coqui TTS wrapper for VITS
 func coquiTextToSpeechVITS(text, outputFile, voice string) ([]byte, error) {
-	fmt.Println("Processing (VITS):", text)
+	fmt.Println("Processing:", text)
 
 	cmd := exec.Command("tts",
 		"--text", text,
@@ -70,9 +74,10 @@ func coquiTextToSpeech(text, language, outputFile string) ([]byte, error) {
 		}
 
 		voice := viper.GetString("tts.vits_voice")
-		if voice == "" {
+		if !viper.IsSet(voice) {
 			voice = defaultVitsVoice
 		}
+
 		return coquiTextToSpeechVITS(text, outputFile, voice)
 	}
 
