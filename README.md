@@ -2,6 +2,12 @@
 
 A Go-based tool for converting text files into high-quality audiobooks using text-to-speech technology.
 
+<div align="center">
+  <img src="https://raw.githubusercontent.com/pixellini/go-audiobook/main/assets/logo.png" width="250" height="250" alt="Logo">
+</div>
+
+
+
 ## 📚 Overview
 
 This repository hosts a work-in-progress tool that transforms plain text and EPUB files into natural-sounding audiobooks using advanced TTS synthesis.
