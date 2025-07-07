@@ -69,7 +69,7 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 	}
 
 	// Loop through chapters.
-	for i, chapter := range epubBook.Chapters[:4] {
+	for i, chapter := range epubBook.Chapters {
 		// Skip chapter if already created.
 		if len(chapter.Paragraphs) == 0 {
 			continue
@@ -90,7 +90,8 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 		}
 
 		// Split the chapter into audio segments
-		fmt.Println("Processing Chapter:", chapter.Title)
+		fmt.Println("\n\nProcessing Chapter:", chapter.Title)
+		fmt.Println("--------------------------------------------------")
 		tts.SynthesizeTextList(chapter.Paragraphs, epubBook.Language)
 
 		// Output segments as .wav files
@@ -115,6 +116,7 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 
 		// Remove .wav paragraph files
 		fsutils.RemoveAllFilesInDir(tempDir)
+		fmt.Println("Processing: Chapter complete ✅")
 	}
 }
 
@@ -129,13 +131,15 @@ func main() {
 
 	tempDir, distDir := setupDirs()
 
+	ttsModel := tts.ModelXTTS
+	if viper.GetBool("tts.use_vits") {
+		ttsModel = tts.ModelVITS
+	}
+	fmt.Printf("Using %s model for TTS.\n", ttsModel)
+
 	generateChapterAudioFiles(book, audiobook, tempDir, distDir)
 
-	// After adding chapters, print the count and file paths
-	fmt.Println("Number of chapters added:", len(audiobook.Chapters))
-	for _, ch := range audiobook.Chapters {
-		fmt.Println("Chapter file:", ch.File)
-	}
+	fmt.Println("\n\n--------------------------------------------------")
 
 	// Combine all chapter .wav files FFmpeg.
 	err := audiobook.Generate(distDir)

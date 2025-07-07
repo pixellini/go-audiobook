@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pixellini/go-audiobook/internal/fsutils"
+	"github.com/pixellini/go-audiobook/internal/utils"
 )
 
 type FileOptions struct {
@@ -17,6 +18,16 @@ type FileOptions struct {
 	Metadata   string
 	OutputName string
 }
+
+type OutputFileFormat string
+
+const (
+	OutputFormatM4B     OutputFileFormat = "m4b"
+	OutputFormatMP3     OutputFileFormat = "mp3"
+	OutputFormatAAC     OutputFileFormat = "m4a"
+	OutputFormatWAV     OutputFileFormat = "wav"
+	DefaultOutputFormat OutputFileFormat = OutputFormatM4B
+)
 
 func ConcatFiles(title string, files []string, output string) error {
 	// Create the temporary file list
@@ -35,8 +46,7 @@ func ConcatFiles(title string, files []string, output string) error {
 		output,
 	)
 
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	utils.LogCommandIfVerbose(cmd)
 
 	err = cmd.Run()
 	if err != nil {
@@ -60,14 +70,17 @@ func GetDuration(audioFilePath string) (float64, error) {
 	return duration, nil
 }
 
-func CreateFile(fileOptions FileOptions, extension string, additionalOptions []string) error {
-	outputFile := fileOptions.OutputName + "." + extension
+func CreateFile(fileOptions FileOptions, extension OutputFileFormat, additionalOptions []string) error {
+	outputFile := fmt.Sprintf("%s.%s", fileOptions.OutputName, extension)
 
-	// Base flags: input audio, cover art, output file
 	baseFlags := []string{
 		"-y",
-		"-i", fileOptions.Name, // audiobook input
-		"-f", "image2", "-i", fileOptions.Image, // cover art image
+		"-i", fileOptions.Name,
+	}
+
+	// Cover art image for non-wav files
+	if extension != OutputFormatWAV {
+		baseFlags = append(baseFlags, "-f", "image2", "-i", fileOptions.Image)
 	}
 
 	// Combine base flags, extra flags, and output file
@@ -75,8 +88,8 @@ func CreateFile(fileOptions FileOptions, extension string, additionalOptions []s
 	cmdArgs = append(cmdArgs, outputFile)
 
 	cmd := exec.Command("ffmpeg", cmdArgs...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	utils.LogCommandIfVerbose(cmd)
 
 	err := cmd.Run()
 	if err != nil {
@@ -87,21 +100,8 @@ func CreateFile(fileOptions FileOptions, extension string, additionalOptions []s
 	return nil
 }
 
-func CreateMP3File(fileOptions FileOptions) error {
-	return CreateFile(fileOptions, "mp3", []string{
-		"-map", "0:a",
-		"-map", "1",
-		"-id3v2_version", "3",
-		"-write_id3v1", "1",
-		"-c:a", "libmp3lame",
-		"-b:a", "128k",
-		"-c:v", "mjpeg",
-		"-disposition:v:0", "attached_pic",
-	})
-}
-
 func CreateM4BFile(fileOptions FileOptions) error {
-	return CreateFile(fileOptions, "m4b", []string{
+	return CreateFile(fileOptions, OutputFormatM4B, []string{
 		"-f", "ffmetadata", "-i", fileOptions.Metadata,
 		"-map", "0:a",
 		"-map", "1",
@@ -114,4 +114,56 @@ func CreateM4BFile(fileOptions FileOptions) error {
 		"-disposition:v:0", "attached_pic",
 		"-f", "ipod",
 	})
+}
+
+func CreateMP3File(fileOptions FileOptions) error {
+	return CreateFile(fileOptions, OutputFormatMP3, []string{
+		"-map", "0:a",
+		"-map", "1",
+		"-id3v2_version", "3",
+		"-write_id3v1", "1",
+		"-c:a", "libmp3lame",
+		"-b:a", "128k",
+		"-c:v", "mjpeg",
+		"-disposition:v:0", "attached_pic",
+	})
+}
+
+func CreateAACFile(fileOptions FileOptions) error {
+	return CreateFile(fileOptions, OutputFormatAAC, []string{
+		"-map", "0:a",
+		"-map", "1",
+		"-c:a", "aac",
+		"-b:a", "96k",
+		"-c:v", "mjpeg",
+		"-disposition:v:0", "attached_pic",
+	})
+}
+
+func CreateWAVFile(fileOptions FileOptions) error {
+	return CreateFile(fileOptions, OutputFormatWAV, []string{
+		"-c:a", "pcm_s16le",
+		"-ar", "44100",
+		"-ac", "2",
+	})
+}
+
+func CreateFileFromFormat(format OutputFileFormat, fileOptions FileOptions) error {
+	switch format {
+	case OutputFormatMP3:
+		fmt.Println("Creating MP3 file...")
+		return CreateMP3File(fileOptions)
+	case OutputFormatAAC:
+		fmt.Println("Creating AAC file...")
+		return CreateAACFile(fileOptions)
+	case OutputFormatWAV:
+		fmt.Println("Creating WAV file...")
+		return CreateWAVFile(fileOptions)
+	case OutputFormatM4B:
+		fmt.Println("Creating M4B file...")
+		return CreateM4BFile(fileOptions)
+	default:
+		fmt.Printf("Format '%s' is not supported. Defaulting to M4B\n", format)
+		return CreateM4BFile(fileOptions)
+	}
 }

@@ -1,6 +1,12 @@
 package utils
 
-import "sync"
+import (
+	"os"
+	"os/exec"
+	"sync"
+
+	"github.com/spf13/viper"
+)
 
 func ParallelForEach[T any](items []T, concurrencyLimit int, fn func(itemIndex int, item T)) {
 	sem := make(chan struct{}, concurrencyLimit)
@@ -18,4 +24,16 @@ func ParallelForEach[T any](items []T, concurrencyLimit int, fn func(itemIndex i
 	}
 
 	wg.Wait()
+}
+
+func LogCommandIfVerbose(cmd *exec.Cmd) {
+	verboseLogs := viper.GetBool("verbose_logs")
+
+	if verboseLogs {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	} else {
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+	}
 }

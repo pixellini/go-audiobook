@@ -3,8 +3,10 @@
   "image_path": "./book/cover.png",
   "speaker_wav": "./speakers/speaker.wav",
   "dist_dir": "./.dist",
+  "output_format": "m4b",
   "verbose_logs": false,
   "tts": {
+    "parallel_audio_count": 1,
     "max_retries": 3,
     "use_vits": false,
     "vits_voice": "p287"
