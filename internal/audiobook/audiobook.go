@@ -6,6 +6,7 @@ import (
 
 	"github.com/pixellini/go-audiobook/internal/audioprocessor"
 	"github.com/pixellini/go-audiobook/internal/epub"
+	"github.com/spf13/viper"
 )
 
 type Audiobook struct {
@@ -39,20 +40,18 @@ func (a *Audiobook) AddChapter(chapter AudiobookChapter) {
 }
 
 func (a *Audiobook) Generate(outputDir string) error {
-	metadataFile, err := a.buildMetadataFile()
-	if err != nil {
-		return err
+	outputFormat := audioprocessor.OutputFileFormat(viper.GetString("output_format"))
+	if outputFormat == "" {
+		outputFormat = audioprocessor.DefaultOutputFormat
 	}
-	defer metadataFile.Close()
 
 	chapterWavFiles := make([]string, len(a.Chapters))
 	for i, chapter := range a.Chapters {
 		chapterWavFiles[i] = chapter.File
 	}
-
 	tempWavFileOutput := fmt.Sprintf("%s/concatenated.wav", outputDir)
 
-	err = audioprocessor.ConcatFiles("concat", chapterWavFiles, tempWavFileOutput)
+	err := audioprocessor.ConcatFiles("concat", chapterWavFiles, tempWavFileOutput)
 	if err != nil {
 		os.Remove(tempWavFileOutput)
 		fmt.Println("Error concatenating audio files:", err)
@@ -61,15 +60,23 @@ func (a *Audiobook) Generate(outputDir string) error {
 
 	outputName := fmt.Sprintf("%s/%s - %s", outputDir, a.Title, a.Author)
 
-	err = audioprocessor.CreateM4BFile(audioprocessor.FileOptions{
+	metadataFile, err := a.buildMetadataFile()
+	if err != nil {
+		os.Remove(tempWavFileOutput)
+		return err
+	}
+	defer metadataFile.Close()
+
+	err = audioprocessor.CreateFileFromFormat(outputFormat, audioprocessor.FileOptions{
 		Name:       tempWavFileOutput,
 		Image:      a.Image,
 		Metadata:   metadataFile.Name(),
 		OutputName: outputName,
 	})
+
 	if err != nil {
 		os.Remove(tempWavFileOutput)
-		fmt.Println("Error creating m4b file:", err)
+		fmt.Printf("Error creating %s file: %v\n", outputFormat, err)
 		return err
 	}
 
