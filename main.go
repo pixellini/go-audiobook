@@ -7,6 +7,7 @@ import (
 
 	"github.com/pixellini/go-audiobook/internal/audiobook"
 	"github.com/pixellini/go-audiobook/internal/audioprocessor"
+	"github.com/pixellini/go-audiobook/internal/device"
 	"github.com/pixellini/go-audiobook/internal/epub"
 	"github.com/pixellini/go-audiobook/internal/fsutils"
 	"github.com/pixellini/go-audiobook/internal/tts"
@@ -126,6 +127,8 @@ func main() {
 	loadConfig()
 
 	book, image := getEpubFileAndImage()
+
+	device.Manager.Current()
 
 	audiobook := audiobook.NewFromEpub(book, image)
 

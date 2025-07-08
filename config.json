@@ -9,6 +9,7 @@
     "parallel_audio_count": 1,
     "max_retries": 3,
     "use_vits": false,
-    "vits_voice": "p287"
+    "vits_voice": "p287",
+    "device": "auto"
   }
 }

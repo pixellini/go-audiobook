@@ -19,7 +19,6 @@ This repository hosts a work-in-progress tool that transforms plain text and EPU
 ### 🛠️ Feature List
 
 - 📄 Support for reading plain .txt files  
-- 🚀 Enhanced Coqui integration, including GPU acceleration if available  
 - 📦 Containerise inside Docker  
 - ⏳ Progress tracking with estimated time remaining  
 - 🌐 Basic web interface (potentially using WASM)  
@@ -75,6 +74,7 @@ The application is configured using a `config.json` file in the project root. Be
 | `tts.parallel_audio_count`  | int     | –                              | Number of audio files to generate in parallel (see recommendations below).  |
 | `tts.use_vits`        | bool    | -                              | If `true`, uses the VITS model for TTS.                                     |
 | `tts.vits_voice`      | string  | e.g. `p287`, `p330`            | VITS voice id. Only used if `tts.use_vits` is `true`.                       |
+| `tts.device`         | string  | `auto`, `cpu`, `cuda`, `mps`   | Device for Coqui TTS. This helps with GPU acceleration. |
 
 ### Example `config.json`
 
@@ -90,7 +90,8 @@ The application is configured using a `config.json` file in the project root. Be
     "max_retries": 3,
     "parallel_audio_count": 4,
     "use_vits": false,
-    "vits_voice": "p287"
+    "vits_voice": "p287",
+    "device": "auto"
   }
 }
 ```
@@ -139,9 +140,15 @@ Experiment with different voices to find the best fit for your audiobook!
 
 ### ⚡️ Optimising Audiobook Creation
 
-Go's concurrency makes it easy to speed up audiobook generation by running multiple text-to-speech processes in parallel. The `tts.parallel_audio_count` setting controls how many TTS operations run at once. Raising this value reduces processing time but increases CPU usage, heat, and fan noise 🥵
+#### GPU Acceleration
+By default, go-audiobook will detect and use GPU acceleration if available. You can override this by setting `tts.device` to `cpu`, `cuda`, or `mps` in your config.
+For best performance, ensure you have the appropriate drivers and dependencies for your hardware.
 
-#### Choosing the Right Parallel Audio Value
+#### Parallel Processing
+
+Go's concurrency makes it easy to speed up audiobook generation by running multiple text-to-speech processes in parallel. The `tts.parallel_audio_count` setting controls how many TTS operations run at once. Raising this value reduces processing time but increases CPU usage, heat, and fan noise 🔥
+
+##### Choosing the Right Parallel Audio Value
 Set `tts.parallel_audio_count` to slightly below your machine's physical core count for the best results (unless you're also mining crypto, in which case... good luck).
 
 **MacBook M1 Pro Example (with 10 cores):**
@@ -149,7 +156,7 @@ Set `tts.parallel_audio_count` to slightly below your machine's physical core co
   - Balanced: `3–5`
   - Maximum: `6-8`
 
-#### Check Your CPU Core Count:
+##### Check Your CPU Core Count:
 **macOS:**
 ```bash
 sysctl -n hw.physicalcpu
@@ -163,11 +170,10 @@ nproc --all
 WMIC CPU Get NumberOfCores
 ```
 
-#### Why Not Exceed Core Count?
+##### Why Not Exceed Core Count?
 Setting `tts.parallel_audio_count` higher than your number of physical cores usually doesn't improve performance. It can make your system less responsive, increase heat and fan noise, and may cause CPU throttling.
 
 > 💡 **Tip:** Start low (2–4), then increase if your system handles it well.
-
 
 ## ⚖️ Terms of Use & Disclaimer
 

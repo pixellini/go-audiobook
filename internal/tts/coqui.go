@@ -4,19 +4,25 @@ import (
 	"fmt"
 	"os/exec"
 
+	"github.com/pixellini/go-audiobook/internal/device"
 	"github.com/pixellini/go-audiobook/internal/formatter"
 	"github.com/spf13/viper"
 )
 
 type TTSModel string
 
+// Available TTS models for go-audiobook
 const (
 	ModelXTTS TTSModel = "XTTS"
 	ModelVITS TTSModel = "VITS"
 )
+
+const (
+	modelNameXTTS = "tts_models/multilingual/multi-dataset/xtts_v2"
+	modelNameVITS = "tts_models/en/vctk/vits"
+)
+
 const defaultVitsVoice = "p287"
-const xttsModelName = "tts_models/multilingual/multi-dataset/xtts_v2"
-const vitsModelName = "tts_models/en/vctk/vits"
 
 func coquiTextToSpeechXTTS(text, language, outputFile string) ([]byte, error) {
 	fmt.Println("Processing:", text)
@@ -26,13 +32,19 @@ func coquiTextToSpeechXTTS(text, language, outputFile string) ([]byte, error) {
 		panic("Missing required config value: 'speaker_wav' in config.json")
 	}
 
-	cmd := exec.Command("tts",
+	args := []string{
 		"--text", text,
-		"--model_name", xttsModelName,
+		"--model_name", modelNameXTTS,
 		"--speaker_wav", speakerWav,
 		"--language_idx", language,
 		"--out_path", outputFile,
-	)
+		"--device", string(device.Manager.Device),
+	}
+	if device.Manager.Device == device.DeviceCUDA {
+		args = append(args, "--use_cuda", "true")
+	}
+
+	cmd := exec.Command("tts", args...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -45,13 +57,18 @@ func coquiTextToSpeechXTTS(text, language, outputFile string) ([]byte, error) {
 func coquiTextToSpeechVITS(text, outputFile, voice string) ([]byte, error) {
 	fmt.Println("Processing:", text)
 
-	cmd := exec.Command("tts",
+	args := []string{
 		"--text", text,
-		"--model_name", vitsModelName,
+		"--model_name", modelNameVITS,
 		"--speaker_idx", voice,
 		"--out_path", outputFile,
-	)
+		"--device", string(device.Manager.Device),
+	}
+	if device.Manager.Device == device.DeviceCUDA {
+		args = append(args, "--use_cuda", "true")
+	}
 
+	cmd := exec.Command("tts", args...)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
