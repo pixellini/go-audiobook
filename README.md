@@ -123,7 +123,7 @@ To see all available voices for the VITS model, run:
 tts --model_name "tts_models/en/vctk/vits" --list_speaker_idxs
 ```
 
-> Note: The command only lists voice numbers, without names or descriptions. To preview the available VITS voices, refer to the `samples/vits` directory, which includes audio files for each VCTK speaker (e.g. `p225.mp3`, `p226.mp3`, etc.). Below are some recommended voices with their key characteristics:
+> Note: The command only lists voice numbers, without names or descriptions. To preview the available VITS voices, refer to the `examples/vits` directory, which includes audio files for each VCTK speaker (e.g. `p225.mp3`, `p226.mp3`, etc.). Below are some recommended voices with their key characteristics:
 
 | Voice # | Gender | Description                                    |
 | ------- | ------ | ---------------------------------------------- |
