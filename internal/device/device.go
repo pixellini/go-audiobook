@@ -37,14 +37,11 @@ var Manager = &DeviceManager{
 	set:    false,
 }
 
-func (dm *DeviceManager) Init() Device {
-	if dm.set {
-		return dm.Device
+func (dm *DeviceManager) Init() {
+	if !dm.set {
+		dm.Device = detectDevice()
+		dm.set = true
 	}
-
-	dm.Device = assignDevice()
-	dm.set = true
-	return dm.Device
 }
 
 // This only checks if the system has the "nvidia-smi" command available,
@@ -56,7 +53,7 @@ func cudaIsAvailable() bool {
 	return err == nil
 }
 
-func assignDevice() Device {
+func detectDevice() Device {
 	device := Device(viper.GetString("tts.device"))
 
 	// User has specified a device

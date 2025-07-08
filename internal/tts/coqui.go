@@ -64,6 +64,8 @@ func (c *CoquiTTSConfig) Init(language string) {
 // They won't change based on the model.
 // Therefore, the "--text" and "--out_path" arguments are not needed here,
 func (c *CoquiTTSConfig) buildBaseCommandArgs() {
+	// Reset args to avoid duplicate arguments on repeated calls
+	c.args = []string{}
 	if c.ModelName == ModelXTTS {
 		c.args = append(c.args,
 			"--model_name", modelNameXTTS,
@@ -84,7 +86,7 @@ func (c *CoquiTTSConfig) buildBaseCommandArgs() {
 
 func (c *CoquiTTSConfig) setSpeaker() {
 	speakerWav := viper.GetString("speaker_wav")
-	if !viper.IsSet(speakerWav) {
+	if speakerWav == "" {
 		panic("Missing required config value: 'speaker_wav'")
 	}
 	c.SpeakerWav = speakerWav
@@ -92,7 +94,7 @@ func (c *CoquiTTSConfig) setSpeaker() {
 
 func (c *CoquiTTSConfig) setVoice() {
 	voice := viper.GetString("tts.vits_voice")
-	if !viper.IsSet(voice) {
+	if voice == "" {
 		c.Voice = defaultVitsVoice
 	} else {
 		c.Voice = voice
