@@ -24,80 +24,104 @@ const (
 
 const defaultVitsVoice = "p287"
 
-func coquiTextToSpeechXTTS(text, language, outputFile string) ([]byte, error) {
-	fmt.Println("Processing:", text)
-
-	speakerWav := viper.GetString("speaker_wav")
-	if !viper.IsSet(speakerWav) {
-		panic("Missing required config value: 'speaker_wav' in config.json")
-	}
-
-	args := []string{
-		"--text", text,
-		"--model_name", modelNameXTTS,
-		"--speaker_wav", speakerWav,
-		"--language_idx", language,
-		"--out_path", outputFile,
-		"--device", string(device.Manager.Device),
-	}
-	if device.Manager.Device == device.DeviceCUDA {
-		args = append(args, "--use_cuda", "true")
-	}
-
-	cmd := exec.Command("tts", args...)
-	output, err := cmd.CombinedOutput()
-
-	if err != nil {
-		return output, fmt.Errorf("error generating audiobook for %s: %v, output: %s", outputFile, err, string(output))
-	}
-
-	return output, nil
+type CoquiTTSConfig struct {
+	ModelName  TTSModel
+	Language   string
+	SpeakerWav string
+	Voice      string
+	args       []string
 }
 
-func coquiTextToSpeechVITS(text, outputFile, voice string) ([]byte, error) {
-	fmt.Println("Processing:", text)
+// This is a singleton instance of CoquiTTSConfig.
+// The config won't change, so we only need to initialise the configuration once.
+var BaseCoquiTTSConfig = &CoquiTTSConfig{}
 
-	args := []string{
-		"--text", text,
-		"--model_name", modelNameVITS,
-		"--speaker_idx", voice,
-		"--out_path", outputFile,
-		"--device", string(device.Manager.Device),
-	}
-	if device.Manager.Device == device.DeviceCUDA {
-		args = append(args, "--use_cuda", "true")
-	}
-
-	cmd := exec.Command("tts", args...)
-	output, err := cmd.CombinedOutput()
-
-	if err != nil {
-		return output, fmt.Errorf("error generating audiobook (VITS) for %s: %v, output: %s", outputFile, err, string(output))
-	}
-
-	return output, nil
-}
-
-// Note: The "language" parameter will only used by XTTS (not VITS).
-// For VITS, only English is supported, therefore the EPUB language must be in English.
-func coquiTextToSpeech(text, language, outputFile string) ([]byte, error) {
+func (c *CoquiTTSConfig) Init(language string) {
 	language = formatter.FormatToStandardLanguage(language)
-	useVitsModel := viper.GetBool("tts.use_vits")
 
-	if useVitsModel {
+	c.ModelName = ModelXTTS
+	c.Language = language
+
+	if viper.GetBool("tts.use_vits") {
 		// VITS only supports English. Panic if language is not English.
 		if language != "en" {
 			panic("The VITS model currently only supports English, please make sure your EPUB is in English.")
 		}
 
-		voice := viper.GetString("tts.vits_voice")
-		if !viper.IsSet(voice) {
-			voice = defaultVitsVoice
-		}
+		c.ModelName = ModelVITS
+		c.setVoice()
 
-		return coquiTextToSpeechVITS(text, outputFile, voice)
+	} else {
+		c.setSpeaker()
 	}
 
-	// Default to XTTS if VITS is not used
-	return coquiTextToSpeechXTTS(text, language, outputFile)
+	fmt.Printf("Using %s model for TTS.\n", c.ModelName)
+
+	c.buildBaseCommandArgs()
+}
+
+// These are the default arguments for the TTS command.
+// They won't change based on the model.
+// Therefore, the "--text" and "--out_path" arguments are not needed here,
+func (c *CoquiTTSConfig) buildBaseCommandArgs() {
+	if c.ModelName == ModelXTTS {
+		c.args = append(c.args,
+			"--model_name", modelNameXTTS,
+			"--speaker_wav", c.SpeakerWav,
+			"--language_idx", c.Language,
+		)
+	} else {
+		c.args = append(c.args,
+			"--model_name", modelNameVITS,
+			"--speaker_idx", c.Voice,
+		)
+	}
+
+	if device.Manager.Device == device.DeviceCUDA {
+		c.args = append(c.args, "--use_cuda", "true")
+	}
+}
+
+func (c *CoquiTTSConfig) setSpeaker() {
+	speakerWav := viper.GetString("speaker_wav")
+	if !viper.IsSet(speakerWav) {
+		panic("Missing required config value: 'speaker_wav'")
+	}
+	c.SpeakerWav = speakerWav
+}
+
+func (c *CoquiTTSConfig) setVoice() {
+	voice := viper.GetString("tts.vits_voice")
+	if !viper.IsSet(voice) {
+		c.Voice = defaultVitsVoice
+	} else {
+		c.Voice = voice
+	}
+}
+
+// Note: The "language" parameter will only used by XTTS (not VITS).
+// For VITS, only English is supported, therefore the EPUB language must be in English.
+func coquiTextToSpeech(text, outputFile string) ([]byte, error) {
+	// Sudden idea: We could use this empty check to implement a speaker pause.
+	if text == "" {
+		return nil, fmt.Errorf("paragraph is empty")
+	}
+
+	args := []string{
+		"--text", text,
+		"--out_path", outputFile,
+	}
+	args = append(args, BaseCoquiTTSConfig.args...)
+
+	cmd := exec.Command("tts", args...)
+
+	fmt.Println("Processing:", text)
+
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return output, fmt.Errorf("error generating audiobook (%s) for %s: %v, output: %s", BaseCoquiTTSConfig.ModelName, outputFile, err, string(output))
+	}
+
+	return output, nil
 }

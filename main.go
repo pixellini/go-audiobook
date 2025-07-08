@@ -128,17 +128,12 @@ func main() {
 
 	book, image := getEpubFileAndImage()
 
-	device.Manager.Current()
-
 	audiobook := audiobook.NewFromEpub(book, image)
 
 	tempDir, distDir := setupDirs()
 
-	ttsModel := tts.ModelXTTS
-	if viper.GetBool("tts.use_vits") {
-		ttsModel = tts.ModelVITS
-	}
-	fmt.Printf("Using %s model for TTS.\n", ttsModel)
+	device.Manager.Init()
+	tts.BaseCoquiTTSConfig.Init(book.Language)
 
 	generateChapterAudioFiles(book, audiobook, tempDir, distDir)
 

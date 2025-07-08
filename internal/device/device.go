@@ -37,7 +37,7 @@ var Manager = &DeviceManager{
 	set:    false,
 }
 
-func (dm *DeviceManager) Current() Device {
+func (dm *DeviceManager) Init() Device {
 	if dm.set {
 		return dm.Device
 	}
