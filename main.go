@@ -7,6 +7,7 @@ import (
 
 	"github.com/pixellini/go-audiobook/internal/audiobook"
 	"github.com/pixellini/go-audiobook/internal/audioprocessor"
+	"github.com/pixellini/go-audiobook/internal/device"
 	"github.com/pixellini/go-audiobook/internal/epub"
 	"github.com/pixellini/go-audiobook/internal/fsutils"
 	"github.com/pixellini/go-audiobook/internal/tts"
@@ -131,11 +132,8 @@ func main() {
 
 	tempDir, distDir := setupDirs()
 
-	ttsModel := tts.ModelXTTS
-	if viper.GetBool("tts.use_vits") {
-		ttsModel = tts.ModelVITS
-	}
-	fmt.Printf("Using %s model for TTS.\n", ttsModel)
+	device.Manager.Init()
+	tts.BaseCoquiTTSConfig.Init(book.Language)
 
 	generateChapterAudioFiles(book, audiobook, tempDir, distDir)
 
