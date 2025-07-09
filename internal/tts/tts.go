@@ -50,9 +50,7 @@ func SynthesizeText(text, language, outputFile string) error {
 	return lastErr
 }
 
-func SynthesizeTextList(paragraphs []string, language string) {
-	tempDir := viper.GetString("temp_dir")
-
+func SynthesizeTextList(tempDir string, paragraphs []string, language string) {
 	parallelAudioCount := viper.GetInt("tts.parallel_audio_count")
 	if parallelAudioCount < defaultParallelAudioCount {
 		parallelAudioCount = defaultParallelAudioCount
