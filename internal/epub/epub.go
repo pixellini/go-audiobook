@@ -3,7 +3,6 @@ package epub
 import (
 	"fmt"
 	"io"
-	"regexp"
 	"strings"
 
 	"github.com/pixellini/go-audiobook/internal/formatter"
@@ -19,15 +18,6 @@ type Epub struct {
 	Chapters     []Chapter
 	dir          string
 }
-
-const (
-	chapterHeaderPattern = `(?i)^(chapter|part|section|page)\s*\d*\.?\s*`
-	titleTagPattern      = `<title>(.*?)</title>`
-)
-
-var (
-	titleTagRegex = regexp.MustCompile(titleTagPattern)
-)
 
 func New(dir string) (*Epub, error) {
 	epub := &Epub{

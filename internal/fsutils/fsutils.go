@@ -7,6 +7,9 @@ import (
 	"sort"
 )
 
+const defaultTempDir = "go-audiobook"
+const fallbackTempDir = ".temp"
+
 func CreateDirIfNotExist(dir string) error {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		return os.MkdirAll(dir, 0755)
@@ -35,15 +38,16 @@ func RemoveDirIfEmpty(dir string) error {
 
 func RemoveAllFilesInDir(dir string) error {
 	entries, err := os.ReadDir(dir)
-
 	if err != nil {
 		return err
 	}
 
 	for _, entry := range entries {
 		entryPath := filepath.Join(dir, entry.Name())
-		if err := os.RemoveAll(entryPath); err != nil {
-			return err
+		if !entry.IsDir() {
+			if err := os.Remove(entryPath); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -132,4 +136,64 @@ func CreateTempFileListTextFile(files []string, fileName string) (string, error)
 	}
 
 	return listFile.Name(), nil
+}
+
+// Create a .temp directory in the current working directory.
+// This is a fallback if the system temp dir is not accessible.
+func CreateFallbackTempDir() error {
+	tempDir := filepath.Join(".", fallbackTempDir)
+	return CreateDirIfNotExist(tempDir)
+}
+
+func CanCreateOSTempDir() bool {
+	// Check if we can create a file in the system temp directory.
+	sysTempDir := os.TempDir()
+	sysAppTempDir := filepath.Join(sysTempDir, defaultTempDir)
+
+	// Attempt to create the directory.
+	err := CreateDirIfNotExist(sysAppTempDir)
+	if err != nil {
+		if os.IsPermission(err) {
+			fmt.Println("Warning: Permission denied for system temp directory:", sysAppTempDir)
+		} else {
+			fmt.Println("Error: Unable to create or access the system temp directory:", err)
+		}
+		return false
+	}
+
+	// Attempt to create a test file.
+	testFile := filepath.Join(sysAppTempDir, "test.tmp")
+	file, err := os.Create(testFile)
+	if err != nil {
+		return false
+	}
+
+	file.Close()
+	// Attempt to remove the test file.
+	err = os.Remove(testFile)
+	if err != nil {
+		fmt.Println("Error: Unable to remove test file in system temp directory:", err)
+		return false
+	}
+
+	return true
+}
+
+// os.TempDir() — Go Docs say "The directory is neither guaranteed to exist nor have accessible permissions."
+// So we'll attemp to use the system temp dir, or fall back to a .temp directory in the project.
+func GetOrCreateTempDir() (string, error) {
+	if !CanCreateOSTempDir() {
+		// If we can't create a file in the system temp directory, use the fallback.
+		err := CreateFallbackTempDir()
+		if err != nil {
+			fmt.Println("Warning: Unable to create fallback temp directory:", err)
+			return "", err
+		}
+		return fallbackTempDir, nil
+	}
+
+	sysTempDir := os.TempDir()
+	sysAppTempDir := filepath.Join(sysTempDir, defaultTempDir)
+
+	return sysAppTempDir, nil
 }

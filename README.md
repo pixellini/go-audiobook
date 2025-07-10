@@ -70,8 +70,9 @@ The application is configured using a `config.json` file in the project root. Be
 | `dist_dir`            | string  | –                              | Output directory for generated audiobook files.                             |
 | `output_format`       | string  | `m4b`, `mp3`, `m4a`, `wav`     | Output file format: `m4b` (default), `mp3`, `m4a` (AAC), or `wav`. See below for details. |
 | `verbose_logs`        | bool    | -                              | If `true`, enables detailed error and debug logs.                           |
+| `test_mode`        | bool    | -                              | If `true`, only processes the first 3 chapters for quick testing.            |
 | `tts.max_retries`     | int     | –                              | Number of times to retry TTS synthesis on failure.                          |
-| `tts.parallel_audio_count`  | int     | –                              | Number of audio files to generate in parallel (see recommendations below).  |
+| `tts.parallel_audio_count`  | int     | -                              | Number of audio files to generate in parallel (see recommendations below).  |
 | `tts.use_vits`        | bool    | -                              | If `true`, uses the VITS model for TTS.                                     |
 | `tts.vits_voice`      | string  | e.g. `p287`, `p330`            | VITS voice id. Only used if `tts.use_vits` is `true`.                       |
 | `tts.device`         | string  | `auto`, `cpu`, `cuda`, `mps`   | Device for Coqui TTS. This helps with GPU acceleration. |
