@@ -36,6 +36,22 @@ func RemoveDirIfEmpty(dir string) error {
 	return nil
 }
 
+func EmptyDir(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		entryPath := filepath.Join(dir, entry.Name())
+		err = os.RemoveAll(entryPath)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func RemoveAllFilesInDir(dir string) error {
 	entries, err := os.ReadDir(dir)
 	if err != nil {

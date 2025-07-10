@@ -99,6 +99,12 @@ The application is configured using a `config.json` file in the project root. Be
 
 > **Note:** All paths are relative to the project root unless otherwise specified.
 
+### Command Line Options
+
+| Flag      | Description                                                                                     |
+|-----------|-------------------------------------------------------------------------------------------------|
+| `--reset` | Removes all previously processed audiobook files and restarts the creation process. If this flag is not set, processing will resume from where it stopped. |
+
 ## 🧩 Guide & Customisation
 
 ### 🎤 Providing a Narrator Voice (.wav)

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"time"
@@ -93,7 +94,7 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 				Title: chapter.Title,
 				File:  chapterFile,
 			})
-			fmt.Println(chapterFile, "already exists. Skipping.")
+			fmt.Printf("Chapter %d already exists. Skipping.\n", i+1)
 			continue
 		}
 
@@ -112,7 +113,6 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 
 		// Combine all .wav paragraph files into a singular .wav file
 		// This will become our Chapter wav file.
-		fmt.Println("Chapter file:", chapterFile)
 		err = audioprocessor.ConcatFiles(epubBook.Title, chapterAudioSegmentFiles, chapterFile)
 		if err != nil {
 			panic(err)
@@ -129,6 +129,19 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 	}
 }
 
+func resetAudiobookGeneration(tempDir, distDir string) {
+	fmt.Println("Resetting audiobook generation process...")
+	err := fsutils.EmptyDir(tempDir)
+	if err != nil {
+		log.Printf("Error removing temp directory: %v", err)
+	}
+
+	err = fsutils.EmptyDir(distDir)
+	if err != nil {
+		log.Printf("Error removing dist directory: %v", err)
+	}
+}
+
 func main() {
 	start := time.Now()
 
@@ -140,6 +153,12 @@ func main() {
 	audiobook := audiobook.NewFromEpub(book, image)
 
 	tempDir, distDir := setupDirs()
+
+	reset := flag.Bool("reset", false, "Reset the audiobook generation process")
+	flag.Parse()
+	if *reset {
+		resetAudiobookGeneration(tempDir, distDir)
+	}
 
 	device.Manager.Init()
 	tts.BaseCoquiTTSConfig.Init(book.Language)
