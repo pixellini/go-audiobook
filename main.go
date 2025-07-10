@@ -70,9 +70,14 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 	chaptersDir := fmt.Sprintf("%s/chapters", tempDir)
 	fsutils.CreateDirIfNotExist(chaptersDir)
 
+	selectedChapters := epubBook.Chapters
+	if viper.GetBool("test_mode") {
+		fmt.Println("Test mode enabled. Processing only first 3 chapters.")
+		selectedChapters = epubBook.Chapters[:3]
+	}
 
 	// Loop through chapters.
-	for i, chapter := range epubBook.Chapters {
+	for i, chapter := range selectedChapters {
 		// Skip chapter if already created.
 		if len(chapter.Paragraphs) == 0 {
 			continue
