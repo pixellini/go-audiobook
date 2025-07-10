@@ -17,6 +17,17 @@ import (
 
 const processingFileType = "wav"
 
+var (
+	flagResetProgress   *bool
+	flagFinishAudiobook *bool
+)
+
+func setFlagValues() {
+	flagResetProgress = flag.Bool("reset", false, "Reset the audiobook generation process")
+	flagFinishAudiobook = flag.Bool("finish", false, "Finish audiobook generation with currently processed chapters.")
+	flag.Parse()
+}
+
 func loadConfig() {
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
@@ -77,6 +88,10 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 		selectedChapters = epubBook.Chapters[:3]
 	}
 
+	if *flagFinishAudiobook {
+		fmt.Println("The finish audiobook generation flag is set. Already processed chapters will be used to create the final audiobook.")
+	}
+
 	// Loop through chapters.
 	for i, chapter := range selectedChapters {
 		// Skip chapter if already created.
@@ -95,6 +110,10 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 				File:  chapterFile,
 			})
 			fmt.Printf("Chapter %d already exists. Skipping.\n", i+1)
+			continue
+		}
+
+		if *flagFinishAudiobook {
 			continue
 		}
 
@@ -144,7 +163,7 @@ func resetAudiobookGeneration(tempDir, distDir string) {
 
 func main() {
 	start := time.Now()
-
+	setFlagValues()
 	loadConfig()
 
 	image := viper.GetString("image_path")
@@ -154,9 +173,7 @@ func main() {
 
 	tempDir, distDir := setupDirs()
 
-	reset := flag.Bool("reset", false, "Reset the audiobook generation process")
-	flag.Parse()
-	if *reset {
+	if *flagResetProgress {
 		resetAudiobookGeneration(tempDir, distDir)
 	}
 

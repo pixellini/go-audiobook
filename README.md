@@ -101,9 +101,10 @@ The application is configured using a `config.json` file in the project root. Be
 
 ### Command Line Options
 
-| Flag      | Description                                                                                     |
-|-----------|-------------------------------------------------------------------------------------------------|
-| `--reset` | Removes all previously processed audiobook files and restarts the creation process. If this flag is not set, processing will resume from where it stopped. |
+| Flag        | Description                                                                                     |
+|-------------|-------------------------------------------------------------------------------------------------|
+| `--reset`   | Removes all previously processed audiobook files and restarts the creation process. If this flag is not set, processing will resume from where it stopped. |
+| `--finish`  | Creates the final audiobook from the chapters processed so far. Useful if you stopped the process partway through and still want a playable, though partial, audiobook. |
 
 ## 🧩 Guide & Customisation
 
