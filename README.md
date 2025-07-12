@@ -70,7 +70,7 @@ The application is configured using a `config.json` file in the project root. Be
 | `dist_dir`            | string  | –                              | Output directory for generated audiobook files.                             |
 | `output_format`       | string  | `m4b`, `mp3`, `m4a`, `wav`     | Output file format: `m4b` (default), `mp3`, `m4a` (AAC), or `wav`. See below for details. |
 | `verbose_logs`        | bool    | -                              | If `true`, enables detailed error and debug logs.                           |
-| `test_mode`        | bool    | -                              | If `true`, only processes the first 3 chapters for quick testing.            |
+| `test_mode`        | bool    | -                              | If `true`, uses the example book and cover from `examples/test/` directory for quick testing and validation.            |
 | `tts.max_retries`     | int     | –                              | Number of times to retry TTS synthesis on failure.                          |
 | `tts.parallel_audio_count`  | int     | -                              | Number of audio files to generate in parallel (see recommendations below).  |
 | `tts.use_vits`        | bool    | -                              | If `true`, uses the VITS model for TTS.                                     |
@@ -81,8 +81,8 @@ The application is configured using a `config.json` file in the project root. Be
 
 ```json
 {
-  "epub_path": "./book/book.epub",
-  "image_path": "./book/cover.png",
+  "epub_path": "./examples/test/book.epub",
+  "image_path": "./examples/test/cover.png",
   "speaker_wav": "./speakers/speaker.wav",
   "dist_dir": "./.dist",
   "output_format": "m4b",
