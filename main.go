@@ -60,38 +60,33 @@ func setupDirs() (string, string) {
 }
 
 func getImageFile() string {
-	var image string
-
 	if viper.GetBool("test_mode") {
 		fmt.Println("TEST MODE ENABLED: Using mock cover image.")
-		image = testImagePath
-	} else {
-		image := viper.GetString("image_path")
-		if image == "" {
-			fmt.Println("WARNING: No image path provided in config.")
-		}
+		return testImagePath
 	}
 
+	image := viper.GetString("image_path")
+	if image == "" {
+		fmt.Println("WARNING: No image path provided in config.")
+	}
 	return image
 }
 
 func getEpubFile() *epub.Epub {
-	var epubPath string
+	epubPath := viper.GetString("epub_path")
 
 	if viper.GetBool("test_mode") {
 		fmt.Println("TEST MODE ENABLED: Using mock epub book.")
 		epubPath = testBookPath
-	} else {
-		// Get epub file path from config.
-		epubPath = viper.GetString("epub_path")
-		if epubPath == "" {
-			panic("Missing required config value: 'epub_path' in config.json")
-		}
+	}
+
+	if epubPath == "" {
+		panic("Missing required config value: 'epub_path' in config.json")
 	}
 
 	book, err := epub.New(epubPath)
 	if err != nil {
-		// We need a book to process the audiobook.
+		// We need a valid epub file to process the audiobook.
 		panic(err)
 	}
 	return book
