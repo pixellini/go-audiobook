@@ -1,18 +1,19 @@
 package formatter
 
 import (
+	"html"
 	"regexp"
 	"strings"
 )
 
 func SplitText(content string) []string {
-	// Step 1: Normalize line breaks (unwrap lines)
-	// Replace single line breaks (not double) with a space
+	content = CleanHTML(content)
+
 	reSingleLineBreak := regexp.MustCompile(`([^\n])\n([^\n])`)
 	for reSingleLineBreak.MatchString(content) {
 		content = reSingleLineBreak.ReplaceAllString(content, "$1 $2")
 	}
-	// Step 2: Split into sentences as before
+
 	re := regexp.MustCompile(`(?m)([^\n]+?[\.!?](?:\s+|$)|[^\n]+$)`)
 	matches := re.FindAllString(content, -1)
 	var result []string
@@ -23,4 +24,13 @@ func SplitText(content string) []string {
 		}
 	}
 	return result
+}
+
+func CleanHTML(content string) string {
+	content = regexp.MustCompile(`(?s)<!DOCTYPE[^>]*>`).ReplaceAllString(content, "")
+	content = regexp.MustCompile(`(?s)<\?xml[^>]*\?>`).ReplaceAllString(content, "")
+	content = regexp.MustCompile(`<[^>]+>`).ReplaceAllString(content, "")
+	content = html.UnescapeString(content)
+	content = regexp.MustCompile(`\s+`).ReplaceAllString(content, " ")
+	return strings.TrimSpace(content)
 }

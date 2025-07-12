@@ -1,6 +1,7 @@
 package epub
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -15,7 +16,36 @@ type Chapter struct {
 	RawText    string
 }
 
+var nonNumberedChapterTitles = []string{
+	"chapter",
+	"part",
+	"introduction",
+	"acknowledgements",
+	"prologue",
+	"epilogue",
+	"foreword",
+	"preface",
+	"afterword",
+	"conclusion",
+	"appendix",
+	"glossary",
+	"index",
+}
+
 var chapterHeaderRegex = regexp.MustCompile(`(?i)^(chapter|part|section|page)\s*\d*\.?\s*`)
+
+func CreateChapterAnnouncement(chapterIndex int, title string) string {
+	lowerTitle := strings.ToLower(strings.TrimSpace(title))
+
+	for _, prefix := range nonNumberedChapterTitles {
+		if strings.HasPrefix(lowerTitle, prefix) {
+			return title
+		}
+	}
+
+	// E.g. "Chapter 1: The Beginning"
+	return fmt.Sprintf("Chapter %d: %s", chapterIndex, title)
+}
 
 func createChapter(rawHtmlContent string) Chapter {
 	cleanedContent := formatter.SplitText(cleanContent(rawHtmlContent))
@@ -64,7 +94,13 @@ func getChapterTitle(htmlContent string) string {
 	titleTagRegex := regexp.MustCompile(`<title>(.*?)</title>`)
 	matches := titleTagRegex.FindStringSubmatch(htmlContent)
 	if len(matches) > 1 {
-		return matches[1]
+		title := matches[1]
+		// Reject titles that look like filenames (e.g., "ch001.xhtml")
+		// This seems to happen a lot when the file is converted to EPUB.
+		if strings.HasSuffix(title, ".xhtml") || strings.HasSuffix(title, ".html") {
+			return ""
+		}
+		return title
 	}
 	return ""
 }
@@ -83,7 +119,11 @@ func isAcceptedChapterItem(id string) bool {
 func cleanContent(htmlContent string) string {
 	htmlContent = regexp.MustCompile(`(?is)<head.*?>.*?</head>`).ReplaceAllString(htmlContent, "")
 	htmlContent = regexp.MustCompile(`(?s)<\?xml.*?\?>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?s)<\?!DOCTYPE.*?\?>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?s)<!DOCTYPE[^>]*>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?s)<html[^>]*>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?s)</html>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?s)<body[^>]*>`).ReplaceAllString(htmlContent, "")
+	htmlContent = regexp.MustCompile(`(?s)</body>`).ReplaceAllString(htmlContent, "")
 	htmlContent = regexp.MustCompile(`(?is)<code.*?>.*?</code>`).ReplaceAllString(htmlContent, "")
 	htmlContent = regexp.MustCompile(`(?is)<pre.*?>.*?</pre>`).ReplaceAllString(htmlContent, "")
 	htmlContent = regexp.MustCompile(`(?is)<kbd.*?>.*?</kbd>`).ReplaceAllString(htmlContent, "")
