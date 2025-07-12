@@ -108,11 +108,13 @@ func (epub *Epub) setChapters() error {
 	// Add the introduction to the beginning of the chapters
 	epub.Chapters = append([]Chapter{introduction}, epub.Chapters...)
 
-	// Remove chapters titled 'contents' or 'table of contents' (case-insensitive, trimmed)
+	// Remove chapters titled 'contents', 'table of contents', or same as book title (case-insensitive, trimmed)
 	filtered := make([]Chapter, 0, len(epub.Chapters))
+	bookTitleLower := strings.TrimSpace(strings.ToLower(epub.Title))
+
 	for _, ch := range epub.Chapters {
 		t := strings.TrimSpace(strings.ToLower(ch.Title))
-		if t == "contents" || t == "table of contents" {
+		if t == "contents" || t == "table of contents" || t == bookTitleLower {
 			continue
 		}
 		filtered = append(filtered, ch)

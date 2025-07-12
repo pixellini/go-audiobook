@@ -17,6 +17,11 @@ import (
 
 const processingFileType = "wav"
 
+const (
+	testBookPath  = "./examples/test/book.epub"
+	testImagePath = "./examples/test/cover.png"
+)
+
 var (
 	flagResetProgress   *bool
 	flagFinishAudiobook *bool
@@ -54,14 +59,37 @@ func setupDirs() (string, string) {
 	return tempDir, distDir
 }
 
-func getEpubFile() *epub.Epub {
-	// Get epub file path from config.
-	epupPath := viper.GetString("epub_path")
-	if epupPath == "" {
-		panic("Missing required config value: 'epub_path' in config.json")
+func getImageFile() string {
+	var image string
+
+	if viper.GetBool("test_mode") {
+		fmt.Println("TEST MODE ENABLED: Using mock cover image.")
+		image = testImagePath
+	} else {
+		image := viper.GetString("image_path")
+		if image == "" {
+			fmt.Println("WARNING: No image path provided in config.")
+		}
 	}
 
-	book, err := epub.New(epupPath)
+	return image
+}
+
+func getEpubFile() *epub.Epub {
+	var epubPath string
+
+	if viper.GetBool("test_mode") {
+		fmt.Println("TEST MODE ENABLED: Using mock epub book.")
+		epubPath = testBookPath
+	} else {
+		// Get epub file path from config.
+		epubPath = viper.GetString("epub_path")
+		if epubPath == "" {
+			panic("Missing required config value: 'epub_path' in config.json")
+		}
+	}
+
+	book, err := epub.New(epubPath)
 	if err != nil {
 		// We need a book to process the audiobook.
 		panic(err)
@@ -82,18 +110,12 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 	chaptersDir := fmt.Sprintf("%s/chapters", tempDir)
 	fsutils.CreateDirIfNotExist(chaptersDir)
 
-	selectedChapters := epubBook.Chapters
-	if viper.GetBool("test_mode") {
-		fmt.Println("Test mode enabled. Processing only first 3 chapters.")
-		selectedChapters = epubBook.Chapters[:3]
-	}
-
 	if *flagFinishAudiobook {
 		fmt.Println("The finish audiobook generation flag is set. Already processed chapters will be used to create the final audiobook.")
 	}
 
 	// Loop through chapters.
-	for i, chapter := range selectedChapters {
+	for i, chapter := range epubBook.Chapters {
 		// Skip chapter if already created.
 		if len(chapter.Paragraphs) == 0 {
 			continue
@@ -120,7 +142,12 @@ func generateChapterAudioFiles(epubBook *epub.Epub, Audiobook *audiobook.Audiobo
 		// Split the chapter into audio segments
 		fmt.Println("\n\nProcessing Chapter:", chapter.Title)
 		fmt.Println("--------------------------------------------------")
-		tts.SynthesizeTextList(tempDir, chapter.Paragraphs, epubBook.Language)
+
+		allContent := append([]string{
+			epub.CreateChapterAnnouncement(i, chapter.Title),
+		}, chapter.Paragraphs...)
+
+		tts.SynthesizeTextList(tempDir, allContent, epubBook.Language)
 
 		// Output segments as .wav files
 		chapterAudioSegmentFiles, err := fsutils.GetFilesFrom(tempDir, processingFileType)
@@ -166,7 +193,7 @@ func main() {
 	setFlagValues()
 	loadConfig()
 
-	image := viper.GetString("image_path")
+	image := getImageFile()
 	book := getEpubFile()
 
 	audiobook := audiobook.NewFromEpub(book, image)

@@ -40,10 +40,8 @@ Thumbs.db
 .temp/
 output/
 temp/
-test/
 .env
 speakers/
-book/
 
 # Add the bin/ directory to the .gitignore file to ignore all contents of the bin directory
 bin/
