@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pixellini/go-audiobook/internal/fsutils"
+	"github.com/pixellini/go-audiobook/internal/epub"
+	"github.com/pixellini/go-audiobook/internal/fs"
 	"github.com/pixellini/go-audiobook/internal/utils"
-	"github.com/pixellini/go-audiobook/pkg/epub"
 	"github.com/spf13/viper"
 )
 
@@ -157,7 +157,7 @@ func (a *Audiobook) buildMetadataFile() (*os.File, error) {
 
 func ConcatFiles(title string, files []string, output string) error {
 	// Create the temporary file list
-	listFileName, err := fsutils.CreateTempFileListTextFile(files, "ffmpeg_concat_*.txt")
+	listFileName, err := fs.CreateTempFileListTextFile(files, "ffmpeg_concat_*.txt")
 	if err != nil {
 		return err
 	}

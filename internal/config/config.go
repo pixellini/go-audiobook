@@ -1,4 +1,4 @@
-package app
+package config
 
 import (
 	"fmt"
@@ -22,13 +22,14 @@ type Config struct {
 type TTSConfig struct {
 	MaxRetries         int    `mapstructure:"max_retries"`
 	ParallelAudioCount int    `mapstructure:"parallel_audio_count"`
+	Concurrency        int    `mapstructure:"concurrency"`
 	UseVits            bool   `mapstructure:"use_vits"`
 	VitsVoice          string `mapstructure:"vits_voice"`
 	Device             string `mapstructure:"device"`
 }
 
 // LoadConfig loads the configuration from file and environment
-func LoadConfig() (*Config, error) {
+func Load() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
 	viper.AddConfigPath(".")
@@ -44,7 +45,7 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("verbose_logs", false)
 	viper.SetDefault("test_mode", false)
 	viper.SetDefault("tts.max_retries", 3)
-	viper.SetDefault("tts.parallel_audio_count", 4)
+	viper.SetDefault("tts.concurrency", 4)
 	viper.SetDefault("tts.use_vits", false)
 	viper.SetDefault("tts.vits_voice", "p287")
 	viper.SetDefault("tts.device", "auto")
