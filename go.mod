@@ -1,6 +1,6 @@
 module github.com/pixellini/go-audiobook
 
-go 1.24.4
+go 1.24.5
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
