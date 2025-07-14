@@ -12,7 +12,7 @@ go get -u github.com/pixellini/go-audiobook/pkg/coqui
 
 ### Prerequisites
 
-go-coqui requires [Coqui TTS](https://github.com/coqui-ai/TTS) (Python) to be installed and available in your PATH.
+go-coqui requires [Coqui TTS](https://github.com/coqui-ai/TTS) to be installed and available in your PATH.
 
 #### Install Coqui TTS
 
@@ -32,7 +32,7 @@ tts --help
 
 ## Quick Start
 
-In contexts where performance is nice, but not critical, use XTTS with a custom speaker sample. It supports multiple languages and provides excellent voice cloning capabilities.
+Basic usage with the default configuration:
 
 ```go
 package main
@@ -44,11 +44,10 @@ import (
 )
 
 func main() {
-    tts, err := coqui.NewWithXtts(
-        "./speakers/speaker.wav", // Path to speaker sample
+    tts, err := coqui.New(
+        coqui.WithModel(coqui.XTTS),
+        coqui.WithSpeakerWav("./speakers/speaker.wav"),
         coqui.WithLanguage(coqui.English),
-        coqui.WithDevice(coqui.Auto),
-        coqui.WithMaxRetries(2),
     )
     if err != nil {
         log.Fatalf("failed to initialize TTS: %v", err)
@@ -60,11 +59,20 @@ func main() {
 }
 ```
 
-When performance and speed are critical, use VITS. It's significantly faster than XTTS but only supports English and predefined speakers.
+For voice cloning with custom speaker samples, use XTTS:
+
+```go
+tts, err := coqui.NewWithXtts(
+    "./speakers/speaker.wav", // Path to speaker sample
+    coqui.WithLanguage(coqui.English),
+)
+```
+
+When you need fast synthesis with predefined voices, use VITS.
 
 ```go
 tts, err := coqui.NewWithVits(
-    "p287", // Speaker index (e.g., "p287")
+    "p287", // Speaker ID (e.g., "p287")
     coqui.WithDevice(coqui.CPU),
 )
 ```
