@@ -58,6 +58,17 @@ func (fm *FileManager) GetEpubFile() (*epub.Epub, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to load EPUB file: %w", err)
 	}
+
+	err = book.LoadMetadata()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load EPUB metadata: %w", err)
+	}
+
+	err = book.LoadChapters()
+	if err != nil {
+		return nil, fmt.Errorf("failed to load EPUB chapters: %w", err)
+	}
+
 	return book, nil
 }
 

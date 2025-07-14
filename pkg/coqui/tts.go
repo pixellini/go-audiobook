@@ -29,7 +29,6 @@ func New(options ...ConfigOption) (*TTS, error) {
 			Language:   English,
 			Model:      XTTS,
 			MaxRetries: defaultRetries,
-			Device:     DetectDevice(Auto), // Auto-detect by default
 		},
 	}
 
@@ -72,6 +71,11 @@ func NewWithVits(speakerIdx string, options ...ConfigOption) (*TTS, error) {
 
 // Synthesize converts text to speech
 func (t *TTS) Synthesize(text, output string) ([]byte, error) {
+	return t.SynthesizeContext(context.Background(), text, output)
+}
+
+// SynthesizeContext converts text to speech with context support
+func (t *TTS) SynthesizeContext(ctx context.Context, text, output string) ([]byte, error) {
 	if text == "" {
 		return nil, errors.New("text cannot be empty")
 	}
@@ -83,12 +87,13 @@ func (t *TTS) Synthesize(text, output string) ([]byte, error) {
 
 	var lastErr error
 	for attempt := 1; attempt <= t.config.MaxRetries; attempt++ {
-		cmdOutput, err := t.runCommand(text, output)
+		cmdOutput, err := t.exec(ctx, text, output)
 		if err == nil {
 			return cmdOutput, nil
 		}
 
 		lastErr = err
+		log.Print(err)
 		log.Printf("TTS failed — (attempt %d/%d)\n", attempt, t.config.MaxRetries)
 	}
 
@@ -106,25 +111,21 @@ func (t *TTS) Configure(options ...ConfigOption) {
 	}
 }
 
-func (t *TTS) runCommand(text, output string) ([]byte, error) {
+// exec executes the TTS command with the given text and output path
+func (t *TTS) exec(ctx context.Context, text, output string) ([]byte, error) {
 	args := t.config.ToArgs()
 	args = append(args,
 		"--text", text,
 		"--out_path", output,
 	)
 
-	if t.config.Device == CUDA {
-		args = append(args, "--use_cuda", "true")
-	}
+	cmd := exec.CommandContext(ctx, "tts", args...)
 
-	cmd := exec.Command("tts", args...)
-
-	fmt.Println("Processing:", text)
+	fmt.Printf("\nProcessing text: %q", text)
 
 	cmdOutput, err := cmd.CombinedOutput()
-
 	if err != nil {
-		return cmdOutput, fmt.Errorf("unable to process")
+		return cmdOutput, fmt.Errorf("TTS command failed: %w", err)
 	}
 
 	return cmdOutput, nil

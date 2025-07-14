@@ -52,6 +52,11 @@ func (c *Config) ToArgs() []string {
 		"--device", c.Device.String(),
 	}
 
+	// Explicitly set CUDA usage based on device
+	if c.Device == CUDA {
+		args = append(args, "--use_cuda", "true")
+	}
+
 	if c.Model == XTTS {
 		args = append(args,
 			"--speaker_wav", c.SpeakerWavFile,

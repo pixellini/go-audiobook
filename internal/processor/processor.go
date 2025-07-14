@@ -86,13 +86,9 @@ func (cp *ChapterProcessor) processChapter(ctx context.Context, chapter epub.Cha
 		return nil
 	}
 
-	cp.logger.Infof("Processing Chapter: %s", chapter.Title)
+	cp.logger.Infof("\n----------------------- " + chapter.GetAnnouncement() + " -----------------------")
 
-	allContent := append([]string{
-		epub.CreateChapterAnnouncement(index, chapter.Title),
-	}, chapter.Paragraphs...)
-
-	if err := cp.synthesizeContent(ctx, allContent); err != nil {
+	if err := cp.synthesizeContent(ctx, chapter.Paragraphs); err != nil {
 		return fmt.Errorf("failed to synthesize content: %w", err)
 	}
 

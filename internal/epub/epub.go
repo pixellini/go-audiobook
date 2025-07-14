@@ -2,12 +2,10 @@ package epub
 
 import (
 	"fmt"
-	"html"
 	"io"
 	"regexp"
 	"strings"
 
-	strip "github.com/grokify/html-strip-tags-go"
 	epubReader "github.com/taylorskalyo/goreader/epub"
 )
 
@@ -18,26 +16,49 @@ type Epub struct {
 	Language     string
 	Introduction string // This is for the audiobook speaker as a welcome.
 	Chapters     []Chapter
-	dir          string
+
+	dir string
+
+	// Cleaners for HTML processing
+	htmlCleaner      *HTMLCleaner
+	contentProcessor *ContentProcessor
 }
 
+// New creates a new EPUB instance with the specified directory
 func New(dir string) (*Epub, error) {
-	epub := &Epub{
-		dir: dir,
+	if dir == "" {
+		return nil, fmt.Errorf("EPUB directory cannot be empty")
 	}
 
-	if err := epub.setMetadata(); err != nil {
-		return epub, err
+	return &Epub{
+		dir:              dir,
+		htmlCleaner:      NewHTMLCleaner(),
+		contentProcessor: NewContentProcessor(),
+	}, nil
+}
+
+// NewWithMetadata creates a new EPUB with metadata
+func NewWithMetadata(dir, title, author, description, language string) (*Epub, error) {
+	epub, err := New(dir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create EPUB: %w", err)
 	}
 
-	if err := epub.setChapters(); err != nil {
-		return epub, err
-	}
+	epub.SetMetadata(dir, title, author, description, language)
 
 	return epub, nil
 }
 
-func (epub *Epub) setMetadata() error {
+// SetMetadata sets the metadata for the EPUB
+func (epub *Epub) SetMetadata(dir, title, author, description, language string) {
+	epub.Title = title
+	epub.Author = author
+	epub.Description = description
+	epub.Language = language
+}
+
+// LoadMetadata loads the metadata from the EPUB file
+func (epub *Epub) LoadMetadata() error {
 	epubFile, err := epubReader.OpenReader(epub.dir)
 
 	if err != nil {
@@ -52,16 +73,14 @@ func (epub *Epub) setMetadata() error {
 
 	book := epubFile.Rootfiles[0]
 
-	epub.Title = book.Title
-	epub.Description = book.Description
-	epub.Language = book.Language
-	epub.Author = book.Creator
-	epub.Introduction = fmt.Sprintf("%s written by %s.", book.Title, book.Creator)
+	epub.SetMetadata(epub.dir, book.Title, book.Creator, book.Description, book.Language)
+	epub.SetIntroduction()
 
 	return nil
 }
 
-func (epub *Epub) setChapters() error {
+// LoadChapters loads all chapters from the EPUB file and processes them.
+func (epub *Epub) LoadChapters() error {
 	epubFile, err := epubReader.OpenReader(epub.dir)
 
 	if err != nil {
@@ -76,15 +95,10 @@ func (epub *Epub) setChapters() error {
 
 	book := epubFile.Rootfiles[0]
 
-	// Filter only the chapters to read. Ignore contents, images, indexes etc.
-	var chapters []epubReader.Item
-	for _, item := range book.Manifest.Items {
-		if isAcceptedChapterItem(item.ID) {
-			chapters = append(chapters, item)
-		}
-	}
+	// We don't use the forloop index because some chapters may be skipped
+	indexCounter := 1
 
-	for _, item := range chapters {
+	for _, item := range book.Manifest.Items {
 		r, err := item.Open()
 		if err != nil {
 			return fmt.Errorf("failed to open item %s: %w", item.ID, err)
@@ -96,38 +110,58 @@ func (epub *Epub) setChapters() error {
 			return fmt.Errorf("failed to read item %s: %w", item.ID, err)
 		}
 
-		rawHtmlContent := string(content)
-		processedChapter := createChapter(rawHtmlContent)
-		epub.Chapters = append(epub.Chapters, processedChapter)
+		ch := NewChapter(item.ID, string(content))
+
+		ch.Clean()
+		ch.LoadTitle()
+
+		// Sometimes the chapter title is the same as the book title, and can create a small chapter with no content.
+		chapterHasSameTitleAsBook := strings.TrimSpace(strings.ToLower(ch.Title)) == strings.TrimSpace(strings.ToLower(epub.Title))
+
+		// Check if chapter is valid (includes both ID-based and title-based filtering)
+		if !ch.IsValid() || chapterHasSameTitleAsBook {
+			continue
+		}
+
+		ch.AddIndex(indexCounter)
+		// Prepend the chapter announcement
+		announcement := ch.GetAnnouncement()
+		if announcement != "" {
+			ch.Paragraphs = append([]string{announcement}, ch.Paragraphs...)
+		}
+		indexCounter++
+
+		epub.Chapters = append(epub.Chapters, *ch)
 	}
 
 	introduction := Chapter{
 		Title:      "Introduction",
-		Paragraphs: SplitText(epub.Introduction),
-		RawText:    epub.Introduction,
+		Paragraphs: append([]string{"Introduction."}, SplitText(epub.Introduction)...),
+		Content:    epub.Introduction,
+		Index:      0, // Set introduction as chapter 0
 	}
 
 	// Add the introduction to the beginning of the chapters
 	epub.Chapters = append([]Chapter{introduction}, epub.Chapters...)
 
-	// Remove chapters titled 'contents', 'table of contents', or same as book title (case-insensitive, trimmed)
-	filtered := make([]Chapter, 0, len(epub.Chapters))
-	bookTitleLower := strings.TrimSpace(strings.ToLower(epub.Title))
-
-	for _, ch := range epub.Chapters {
-		t := strings.TrimSpace(strings.ToLower(ch.Title))
-		if t == "contents" || t == "table of contents" || t == bookTitleLower {
-			continue
-		}
-		filtered = append(filtered, ch)
-	}
-	epub.Chapters = filtered
-
 	return nil
 }
 
+// GetDir returns the directory where the EPUB is located
+func (epub *Epub) GetDir() string {
+	return epub.dir
+}
+
+// SetIntroduction sets the introduction text for the audiobook
+func (epub *Epub) SetIntroduction() {
+	epub.Introduction = fmt.Sprintf("%s written by %s.", epub.Title, epub.Author)
+}
+
+// SplitText splits the content into sentences based on punctuation and line breaks.
 func SplitText(content string) []string {
-	content = CleanHTML(content)
+	// Use the cleaner from the package
+	cleaner := NewHTMLCleaner()
+	content = cleaner.CleanHTML(content)
 
 	reSingleLineBreak := regexp.MustCompile(`([^\n])\n([^\n])`)
 	for reSingleLineBreak.MatchString(content) {
@@ -144,58 +178,4 @@ func SplitText(content string) []string {
 		}
 	}
 	return result
-}
-
-func CleanHTML(content string) string {
-	content = regexp.MustCompile(`(?s)<!DOCTYPE[^>]*>`).ReplaceAllString(content, "")
-	content = regexp.MustCompile(`(?s)<\?xml[^>]*\?>`).ReplaceAllString(content, "")
-	content = regexp.MustCompile(`<[^>]+>`).ReplaceAllString(content, "")
-	content = html.UnescapeString(content)
-	content = regexp.MustCompile(`\s+`).ReplaceAllString(content, " ")
-	return strings.TrimSpace(content)
-}
-
-func CleanContent(htmlContent string) string {
-	htmlContent = regexp.MustCompile(`(?is)<head.*?>.*?</head>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?s)<\?xml.*?\?>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?s)<!DOCTYPE[^>]*>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?s)<html[^>]*>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?s)</html>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?s)<body[^>]*>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?s)</body>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<code.*?>.*?</code>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<pre.*?>.*?</pre>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<kbd.*?>.*?</kbd>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<samp.*?>.*?</samp>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<var.*?>.*?</var>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<figure.*?>.*?</figure>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<script.*?>.*?</script>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<style.*?>.*?</style>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<nav.*?>.*?</nav>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<aside.*?>.*?</aside>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<footer.*?>.*?</footer>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<form.*?>.*?</form>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<svg.*?>.*?</svg>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<object.*?>.*?</object>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<embed.*?>.*?</embed>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<iframe.*?>.*?</iframe>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<table.*?>.*?</table>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<math.*?>.*?</math>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<audio.*?>.*?</audio>`).ReplaceAllString(htmlContent, "")
-	htmlContent = regexp.MustCompile(`(?is)<video.*?>.*?</video>`).ReplaceAllString(htmlContent, "")
-	htmlContent = strings.TrimSpace(htmlContent)
-	return strip.StripTags(htmlContent)
-}
-
-func ReplaceCodePattern(content string) string {
-	re := regexp.MustCompile(`(?m)^(Figure|Fig|Listing|Example)\b.*$`)
-	return re.ReplaceAllString(content, "...")
-}
-
-func ReplaceUrlPattern(content string) string {
-	re := regexp.MustCompile(`(https?://\S+|www\.\S+)`)
-	if re.MatchString(content) {
-		return re.ReplaceAllString(content, "URL Link")
-	}
-	return content
 }

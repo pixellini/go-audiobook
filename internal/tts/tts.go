@@ -33,6 +33,9 @@ func Init(config *config.Config, language coqui.Language) (*coqui.TTS, error) {
 	var tts *coqui.TTS
 	var err error
 
+	// Convert string device to coqui.Device type
+	device := coqui.Device(config.TTS.Device)
+
 	if config.TTS.UseVits {
 		// Use VITS model
 		speakerIdx := config.TTS.VitsVoice
@@ -41,17 +44,22 @@ func Init(config *config.Config, language coqui.Language) (*coqui.TTS, error) {
 		}
 		tts, err = coqui.NewWithVits(speakerIdx,
 			coqui.WithLanguage(language),
+			coqui.WithSpeaker(config.TTS.VitsVoice),
 			coqui.WithMaxRetries(config.TTS.MaxRetries),
+			coqui.WithDevice(device),
 		)
 	} else {
 		// Use XTTS model
 		speakerWav := config.SpeakerWav
 		if speakerWav == "" {
+			// Coqui will panic anyway if speakerWav is empty
 			panic("Speaker WAV file must be specified in the configuration")
 		}
 		tts, err = coqui.NewWithXtts(speakerWav,
 			coqui.WithLanguage(language),
+			coqui.WithSpeaker(config.SpeakerWav),
 			coqui.WithMaxRetries(config.TTS.MaxRetries),
+			coqui.WithDevice(device),
 		)
 	}
 
