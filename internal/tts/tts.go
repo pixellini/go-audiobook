@@ -2,72 +2,72 @@ package tts
 
 import (
 	"fmt"
-	"log"
-	"os"
-	"path/filepath"
 
-	"github.com/pixellini/go-audiobook/internal/fsutils"
-	"github.com/pixellini/go-audiobook/internal/utils"
-	"github.com/spf13/viper"
+	"github.com/pixellini/go-audiobook/internal/config"
+	"github.com/pixellini/go-coqui"
 )
 
-const defaultMaxRetries = 1
-const defaultParallelAudioCount = 1
+const (
+	defaultVitsSpeaker = "p287"
+)
 
-func SynthesizeText(text, language, outputFile string) error {
-	_, err := os.Stat(outputFile)
-	if err == nil {
-		fmt.Println("Skipping audio file:", outputFile)
-		return nil
-	}
-
-	maxRetries := viper.GetInt("tts.max_retries")
-	if maxRetries < defaultMaxRetries {
-		maxRetries = defaultMaxRetries
-	}
-
-	verbose := viper.GetBool("verbose_logs")
-	var lastErr error
-
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		output, err := coquiTextToSpeech(text, outputFile)
-		if err == nil {
-			return nil
-		}
-
-		lastErr = err
-		log.Printf("TTS failed — (attempt %d/%d)\n", attempt, maxRetries)
-
-		if verbose {
-			fmt.Printf("Output: %s\n", string(output))
-		}
-	}
-
-	if verbose && lastErr != nil {
-		fmt.Println(lastErr)
-	}
-
-	return lastErr
+// TTSManager implements the TTSService interface
+type TTSManager struct {
+	tts *coqui.TTS
 }
 
-func SynthesizeTextList(tempDir string, paragraphs []string, language string) {
-	parallelAudioCount := viper.GetInt("tts.parallel_audio_count")
-	if parallelAudioCount < defaultParallelAudioCount {
-		parallelAudioCount = defaultParallelAudioCount
+// NewTTSManager creates a new TTS manager
+func NewManager(tts *coqui.TTS) *TTSManager {
+	return &TTSManager{
+		tts: tts,
+	}
+}
+
+// Synthesize synthesizes text to audio file
+func (tm *TTSManager) Synthesize(text, outputFile string) ([]byte, error) {
+	return tm.tts.Synthesize(text, outputFile)
+}
+
+// InitializeTTS creates and initializes a TTS instance based on configuration
+func Init(config *config.Config, language coqui.Language) (*coqui.TTS, error) {
+	var tts *coqui.TTS
+	var err error
+
+	// Convert string device to coqui.Device type
+	device := coqui.Device(config.TTS.Device)
+
+	if config.TTS.UseVits {
+		// Use VITS model
+		speakerIdx := config.TTS.VitsVoice
+		if speakerIdx == "" {
+			speakerIdx = defaultVitsSpeaker
+		}
+		tts, err = coqui.NewWithSpecificModel(coqui.ModelVITSVCTK,
+			coqui.WithSpeakerIndex(speakerIdx),
+			coqui.WithLanguage(language),
+			coqui.WithMaxRetries(config.TTS.MaxRetries),
+			coqui.WithDevice(device),
+			coqui.WithDistDir(config.DistDir),
+		)
+	} else {
+		// Use XTTS model
+		speakerWav := config.SpeakerWav
+		if speakerWav == "" {
+			// Coqui will panic anyway if speakerWav is empty
+			panic("Speaker WAV file must be specified in the configuration")
+		}
+		tts, err = coqui.NewWithModelXttsV2(speakerWav,
+			coqui.WithLanguage(language),
+			coqui.WithSpeaker(config.SpeakerWav),
+			coqui.WithMaxRetries(config.TTS.MaxRetries),
+			coqui.WithDevice(device),
+			coqui.WithDistDir(config.DistDir),
+		)
 	}
 
-	utils.ParallelForEach(paragraphs, parallelAudioCount, func(i int, content string) {
-		index := i + 1
-		filename := fmt.Sprintf("part-%d.wav", index)
-		outputAudioFile := filepath.Join(tempDir, filename)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize TTS: %w", err)
+	}
 
-		if fsutils.FileExists(outputAudioFile) {
-			fmt.Println("Skipping audio file:", filename)
-			return
-		}
-
-		if err := SynthesizeText(content, language, outputAudioFile); err != nil {
-			fmt.Printf("Error processing part %d: %v\n", index, err)
-		}
-	})
+	return tts, nil
 }
