@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pixellini/go-audiobook/internal/config"
-	"github.com/pixellini/go-audiobook/pkg/coqui"
+	"github.com/pixellini/go-coqui"
 )
 
 const (
@@ -42,11 +42,12 @@ func Init(config *config.Config, language coqui.Language) (*coqui.TTS, error) {
 		if speakerIdx == "" {
 			speakerIdx = defaultVitsSpeaker
 		}
-		tts, err = coqui.NewWithVits(speakerIdx,
+		tts, err = coqui.NewWithSpecificModel(coqui.ModelVITSVCTK,
+			coqui.WithSpeakerIndex(speakerIdx),
 			coqui.WithLanguage(language),
-			coqui.WithSpeaker(config.TTS.VitsVoice),
 			coqui.WithMaxRetries(config.TTS.MaxRetries),
 			coqui.WithDevice(device),
+			coqui.WithDistDir(config.DistDir),
 		)
 	} else {
 		// Use XTTS model
@@ -55,11 +56,12 @@ func Init(config *config.Config, language coqui.Language) (*coqui.TTS, error) {
 			// Coqui will panic anyway if speakerWav is empty
 			panic("Speaker WAV file must be specified in the configuration")
 		}
-		tts, err = coqui.NewWithXtts(speakerWav,
+		tts, err = coqui.NewWithModelXttsV2(speakerWav,
 			coqui.WithLanguage(language),
 			coqui.WithSpeaker(config.SpeakerWav),
 			coqui.WithMaxRetries(config.TTS.MaxRetries),
 			coqui.WithDevice(device),
+			coqui.WithDistDir(config.DistDir),
 		)
 	}
 

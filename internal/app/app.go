@@ -11,7 +11,7 @@ import (
 	"github.com/pixellini/go-audiobook/internal/logger"
 	"github.com/pixellini/go-audiobook/internal/processor"
 	"github.com/pixellini/go-audiobook/internal/tts"
-	"github.com/pixellini/go-audiobook/pkg/coqui"
+	"github.com/pixellini/go-coqui"
 )
 
 // Application represents the main application

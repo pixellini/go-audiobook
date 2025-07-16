@@ -36,11 +36,26 @@ To run this project, you'll need the following dependencies installed:
 #### **[Coqui TTS](https://github.com/coqui-ai/TTS)**
 Used for generating natural-sounding speech  
 
-Install via pip:
+Install via pip3:
 
 ```bash
-pip install TTS
+pip3 install coqui-tts
 ```
+
+> **Upgrading from original TTS?** 
+> 
+> If you previously had the original `TTS` package installed, you may encounter dependency conflicts. To resolve this, first uninstall the conflicting packages:
+> ```bash
+> pip3 uninstall TTS coqpit -y
+> pip3 install coqui-tts
+> ```
+> 
+> **Still having issues?** If you continue to get import errors or dependency conflicts, try a clean reinstallation:
+> ```bash
+> pip3 uninstall coqui-tts coqpit coqpit-config -y
+> pip3 cache purge
+> pip3 install --no-cache-dir coqui-tts
+> ```
 
 #### **[FFmpeg](https://github.com/FFmpeg/FFmpeg)**
 Handles audio processing and conversion
