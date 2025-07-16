@@ -1,4 +1,4 @@
-# go-audiobook
+# 🎧 go-audiobook
 
 A Go-based tool for converting text files into high-quality audiobooks using text-to-speech technology.
 
