@@ -33,7 +33,7 @@ Instructions for installing and using this tool will be added once it's ready fo
 
 To run this project, you'll need the following dependencies installed:
 
-#### **[Coqui TTS](https://github.com/coqui-ai/TTS)**
+#### **[Coqui TTS](https://github.com/idiap/coqui-ai-TTS)**
 Used for generating natural-sounding speech  
 
 Install via pip3:
