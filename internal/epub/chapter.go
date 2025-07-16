@@ -69,7 +69,7 @@ func (c *Chapter) LoadTitle() {
 	titleTagRegex := regexp.MustCompile(`<title>(.*?)</title>`)
 	matches := titleTagRegex.FindStringSubmatch(c.Content)
 	if len(matches) > 1 {
-		title := matches[1]
+		title = matches[1]
 		// Reject titles that look like filenames (e.g., "ch001.xhtml")
 		// This seems to happen a lot when the file is converted to EPUB.
 		if strings.HasSuffix(title, ".xhtml") || strings.HasSuffix(title, ".html") {

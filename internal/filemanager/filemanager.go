@@ -59,13 +59,11 @@ func (fm *FileManager) GetEpubFile() (*epub.Epub, error) {
 		return nil, fmt.Errorf("failed to load EPUB file: %w", err)
 	}
 
-	err = book.LoadMetadata()
-	if err != nil {
+	if err := book.LoadMetadata(); err != nil {
 		return nil, fmt.Errorf("failed to load EPUB metadata: %w", err)
 	}
 
-	err = book.LoadChapters()
-	if err != nil {
+	if err := book.LoadChapters(); err != nil {
 		return nil, fmt.Errorf("failed to load EPUB chapters: %w", err)
 	}
 

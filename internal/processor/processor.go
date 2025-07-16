@@ -128,7 +128,7 @@ func (cp *ChapterProcessor) synthesizeContent(ctx context.Context, content []str
 			return
 		}
 
-		outputFile := fmt.Sprintf("%s/%d.%s", cp.tempDir, i, processingFileType)
+		outputFile := fmt.Sprintf("%s/part-%d.%s", cp.tempDir, i, processingFileType)
 
 		_, err := cp.tts.Synthesize(text, outputFile)
 		if err != nil {
