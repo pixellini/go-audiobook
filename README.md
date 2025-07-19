@@ -3,7 +3,7 @@
 A Go-based tool for converting text files into high-quality audiobooks using text-to-speech technology.
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/pixellini/go-audiobook/main/assets/logo.png" alt="Logo">
+  <img src="https://raw.githubusercontent.com/pixellini/pixellini/main/assets/go-audiobook.png" alt="Logo">
 </div>
 
 
