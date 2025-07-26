@@ -27,6 +27,7 @@ type Application struct {
 	fileManager filemanager.FileService
 	tts         ttsservice.TTSservice
 	audio       audioservice.AudioService
+	flag        *flags.Flags
 
 	chapters []*epubreader.EpubReaderChapter
 	cacheDir string
@@ -62,24 +63,31 @@ func New() (*Application, error) {
 	}, nil
 }
 
+func NewWithFlags(fl *flags.Flags) (*Application, error) {
+	app, err := New()
+	if err != nil {
+		return app, err
+	}
+
+	app.flag = fl
+
+	return app, nil
+}
+
 func (app *Application) Run() error {
 	return app.RunContext(context.Background())
 }
 
 func (app *Application) RunContext(ctx context.Context) error {
-	return app.run(ctx, nil)
+	return app.run(ctx)
 }
 
-func (app *Application) RunWithFlags(fl *flags.Flags) error {
-	return app.RunWithFlagsContext(context.Background(), fl)
-}
-
-func (app *Application) RunWithFlagsContext(ctx context.Context, fl *flags.Flags) error {
-	return app.run(ctx, nil)
-}
-
-func (app *Application) run(ctx context.Context, _ *flags.Flags) error {
+func (app *Application) run(ctx context.Context) error {
 	defer app.fileManager.Remove(app.cacheDir)
+
+	if app.flag.ResetProgress {
+		app.Reset()
+	}
 
 	start := time.Now()
 
@@ -158,7 +166,7 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 	processedChapters := make([]*epub.EpubChapter, 0, len(chapters))
 
 	chapterNumber := 1
-	for _, chapter := range chapters[:6] {
+	for _, chapter := range chapters {
 		ch, err := epub.NewChapter(chapter.Id, chapter.Title, chapter.Content)
 		if err != nil || !ch.IsValid() {
 			continue
@@ -166,8 +174,13 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 		ch.Path = filepath.Join(app.cacheDir, fmt.Sprintf("chapter-%d.wav", chapterNumber))
 
 		if fsutils.FileExists(ch.Path) {
-			fmt.Printf("Chapter %d audio file already exists, skipping.", chapterNumber)
 			processedChapters = append(processedChapters, ch)
+			chapterNumber++
+			continue
+		}
+
+		if app.flag.FinishAudiobook {
+			// Skip this chapter if we're finishing audiobook and the file doesn't exist
 			chapterNumber++
 			continue
 		}
@@ -233,6 +246,10 @@ func (app *Application) CreateChapterAudio(ctx context.Context, chapter *epub.Ep
 
 			if fsutils.FileExists(path) {
 				return add(path)
+			}
+
+			if app.flag.FinishAudiobook {
+				return nil
 			}
 
 			if _, err := app.tts.SynthesizeContext(ctx, p, name); err != nil {
@@ -306,4 +323,9 @@ func (app *Application) BuildMetadataFile(book *epub.EpubMetadata, chapters []*e
 	}
 
 	return metaFile, nil
+}
+
+func (app *Application) Reset() {
+	app.fileManager.Remove(app.config.Output.Path)
+	app.fileManager.Remove(app.cacheDir)
 }
