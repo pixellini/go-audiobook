@@ -8,34 +8,34 @@ import (
 	"github.com/pixellini/go-audiobook/internal/config"
 	"github.com/pixellini/go-audiobook/internal/epub"
 	"github.com/pixellini/go-audiobook/internal/fs"
-	"github.com/pixellini/go-audiobook/internal/interfaces"
+	"github.com/pixellini/go-audiobook/internal/logger"
 	"github.com/pixellini/go-audiobook/internal/utils"
+	"github.com/pixellini/go-coqui"
 )
 
 const processingFileType = "wav"
 
 // ChapterProcessor handles the processing of individual chapters
 type ChapterProcessor struct {
-	tts       interfaces.TTSService
+	tts       *coqui.TTS
 	config    *config.Config
-	logger    interfaces.Logger
+	logger    logger.Logger
 	tempDir   string
 	bookTitle string
 }
 
-// NewChapterProcessor creates a new chapter processor
-func NewChapterProcessor(tts interfaces.TTSService, config *config.Config, logger interfaces.Logger, tempDir, bookTitle string) *ChapterProcessor {
+// New creates a new chapter processor
+func New(tts *coqui.TTS, config *config.Config, tempDir, bookTitle string) *ChapterProcessor {
 	return &ChapterProcessor{
 		tts:       tts,
 		config:    config,
-		logger:    logger,
 		tempDir:   tempDir,
 		bookTitle: bookTitle,
 	}
 }
 
-// ProcessChapters processes all chapters in the EPUB
-func (cp *ChapterProcessor) ProcessChapters(ctx context.Context, epubBook *epub.Epub, audiobookInstance *audiobook.Audiobook, finishAudiobook bool) error {
+// Chapters processes all chapters in the EPUB
+func (cp *ChapterProcessor) Chapters(ctx context.Context, epubBook *epub.Epub, audiobookInstance *audiobook.Audiobook, finishAudiobook bool) error {
 	if len(epubBook.Chapters) == 0 {
 		return fmt.Errorf("no chapters found in epub file")
 	}
@@ -60,7 +60,7 @@ func (cp *ChapterProcessor) ProcessChapters(ctx context.Context, epubBook *epub.
 			continue
 		}
 
-		if err := cp.processChapter(ctx, chapter, i, chaptersDir, audiobookInstance, finishAudiobook); err != nil {
+		if err := cp.chapter(ctx, chapter, i, chaptersDir, audiobookInstance, finishAudiobook); err != nil {
 			return fmt.Errorf("failed to process chapter %d: %w", i+1, err)
 		}
 	}
@@ -68,8 +68,8 @@ func (cp *ChapterProcessor) ProcessChapters(ctx context.Context, epubBook *epub.
 	return nil
 }
 
-// processChapter processes a single chapter
-func (cp *ChapterProcessor) processChapter(ctx context.Context, chapter epub.Chapter, index int, chaptersDir string, audiobookInstance *audiobook.Audiobook, finishAudiobook bool) error {
+// chapter processes a single chapter
+func (cp *ChapterProcessor) chapter(ctx context.Context, chapter epub.Chapter, index int, chaptersDir string, audiobookInstance *audiobook.Audiobook, finishAudiobook bool) error {
 	chapterFile := cp.chapterFilePath(chaptersDir, index)
 
 	// Check if the chapter was already processed
@@ -128,7 +128,7 @@ func (cp *ChapterProcessor) synthesizeContent(ctx context.Context, content []str
 			return
 		}
 
-		outputFile := fmt.Sprintf("%s/part-%d.%s", cp.tempDir, i, processingFileType)
+		outputFile := fmt.Sprintf("part-%d.%s", i, processingFileType)
 
 		_, err := cp.tts.Synthesize(text, outputFile)
 		if err != nil {

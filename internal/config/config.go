@@ -3,32 +3,52 @@ package config
 import (
 	"fmt"
 
+	"github.com/pixellini/go-coqui/model"
 	"github.com/spf13/viper"
 )
 
-// Config represents the application configuration
 type Config struct {
-	EpubPath     string    `mapstructure:"epub_path"`
-	ImagePath    string    `mapstructure:"image_path"`
-	SpeakerWav   string    `mapstructure:"speaker_wav"`
-	DistDir      string    `mapstructure:"dist_dir"`
-	OutputFormat string    `mapstructure:"output_format"`
-	VerboseLogs  bool      `mapstructure:"verbose_logs"`
-	TestMode     bool      `mapstructure:"test_mode"`
-	TTS          TTSConfig `mapstructure:"tts"`
+	VerboseLogs bool    `mapstructure:"verbose_logs"`
+	TestMode    bool    `mapstructure:"test_mode"`
+	Epub        Epub    `mapstructure:"epub"`
+	Output      Output  `mapstructure:"output"`
+	Model       Model   `mapstructure:"model"`
+	Vocoder     Vocoder `mapstructure:"vocoder"`
+
+	TempDir string
 }
 
-// TTSConfig represents TTS-specific configuration
-type TTSConfig struct {
-	MaxRetries         int    `mapstructure:"max_retries"`
-	ParallelAudioCount int    `mapstructure:"parallel_audio_count"`
-	Concurrency        int    `mapstructure:"concurrency"`
-	UseVits            bool   `mapstructure:"use_vits"`
-	VitsVoice          string `mapstructure:"vits_voice"`
-	Device             string `mapstructure:"device"`
+type Epub struct {
+	Path        string `mapstructure:"path"`
+	CoverImage  string `mapstructure:"cover_image"`
+	Title       string `mapstructure:"title"`
+	Author      string `mapstructure:"author"`
+	Language    string `mapstructure:"language"`
+	Publisher   string `mapstructure:"publisher"`
+	Description string `mapstructure:"description"`
 }
 
-// LoadConfig loads the configuration from file and environment
+type Output struct {
+	Path     string `mapstructure:"path"`
+	Format   string `mapstructure:"format"`
+	Filename string `mapstructure:"filename"`
+}
+
+type Model struct {
+	Name        string         `mapstructure:"name"`
+	Language    model.Language `mapstructure:"language"`
+	SpeakerWav  string         `mapstructure:"speaker_wav"`
+	SpeakerIdx  string         `mapstructure:"speaker_idx"`
+	Concurrency uint8          `mapstructure:"concurrency"`
+	MaxRetries  uint8          `mapstructure:"max_retries"`
+	Device      model.Device   `mapstructure:"device"`
+}
+
+type Vocoder struct {
+	Name     string         `mapstructure:"name"`
+	Language model.Language `mapstructure:"language"`
+}
+
 func Load() (*Config, error) {
 	viper.SetConfigName("config")
 	viper.SetConfigType("json")
@@ -38,22 +58,36 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("error reading config file: %w", err)
 	}
 
-	// Set default values if not present in config
-	viper.SetDefault("image_path", "")
-	viper.SetDefault("temp_dir", "./.temp")
-	viper.SetDefault("output_format", "m4b")
-	viper.SetDefault("verbose_logs", false)
-	viper.SetDefault("test_mode", false)
-	viper.SetDefault("tts.max_retries", 3)
-	viper.SetDefault("tts.concurrency", 4)
-	viper.SetDefault("tts.use_vits", false)
-	viper.SetDefault("tts.vits_voice", "p287")
-	viper.SetDefault("tts.device", "auto")
-
-	var config Config
-	if err := viper.Unmarshal(&config); err != nil {
+	setDefaults()
+	config := &Config{}
+	if err := viper.Unmarshal(config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	return &config, nil
+	// check if the end of output doesn't contain a slash, otherwise add it
+	if config.Output.Path != "" && config.Output.Path[len(config.Output.Path)-1] != '/' {
+		config.Output.Path += "/"
+	}
+
+	config.TempDir = "./.temp/"
+
+	return config, nil
+}
+
+func setDefaults() {
+	// 	// Set default values if not present in config
+	// 	viper.SetDefault("image_path", "")
+	// 	viper.SetDefault("temp_dir", "./.temp")
+	// 	viper.SetDefault("output_format", "m4b")
+	// 	viper.SetDefault("verbose_logs", false)
+	// 	viper.SetDefault("test_mode", false)
+	// 	viper.SetDefault("tts.max_retries", 3)
+	// 	viper.SetDefault("tts.concurrency", 4)
+	// 	viper.SetDefault("tts.use_vits", false)
+	// 	viper.SetDefault("tts.vits_voice", "p287")
+	// 	viper.SetDefault("tts.device", "auto")
+}
+
+func (o Output) FullPath() string {
+	return o.Path + o.Filename + o.Format
 }

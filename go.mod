@@ -5,7 +5,7 @@ go 1.24.5
 require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/grokify/html-strip-tags-go v0.1.0
-	github.com/pixellini/go-coqui v0.0.0-20250716092137-cea34d855059
+	github.com/pixellini/go-coqui v0.1.0
 	github.com/spf13/viper v1.20.1
 	github.com/taylorskalyo/goreader v1.0.1
 )
@@ -21,8 +21,8 @@ require (
 	github.com/spf13/cast v1.7.1 // indirect
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
-	go.uber.org/atomic v1.9.0 // indirect
-	go.uber.org/multierr v1.9.0 // indirect
+	go.uber.org/multierr v1.11.0 // indirect
+	go.uber.org/zap v1.27.0
 	golang.org/x/net v0.34.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
