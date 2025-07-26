@@ -14,8 +14,6 @@ type Config struct {
 	Output      Output  `mapstructure:"output"`
 	Model       Model   `mapstructure:"model"`
 	Vocoder     Vocoder `mapstructure:"vocoder"`
-
-	TempDir string
 }
 
 type Epub struct {
@@ -69,8 +67,6 @@ func Load() (*Config, error) {
 		config.Output.Path += "/"
 	}
 
-	config.TempDir = "./.temp/"
-
 	return config, nil
 }
 
@@ -89,5 +85,5 @@ func setDefaults() {
 }
 
 func (o Output) FullPath() string {
-	return o.Path + o.Filename + o.Format
+	return o.Path + o.Filename + "." + o.Format
 }

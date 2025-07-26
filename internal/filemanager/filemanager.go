@@ -1,6 +1,7 @@
 package filemanager
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -8,20 +9,16 @@ import (
 type FileService interface {
 	Create(dir string)
 	Remove(dir string) error
-	CreateTemp()
-	RemoveTemp() error
 	Save(path, content string) error
+	CreateCacheDir() (cacheDir string, err error)
 }
 
-type FileManager struct {
-	TempDir         string
-	fallbackTempDir string
-}
+type FileManager struct{}
 
-func NewService(fallbackTempDir string) (FileService, error) {
-	return &FileManager{
-		fallbackTempDir: fallbackTempDir,
-	}, nil
+const defaultCacheDir = "./.cache/"
+
+func New() FileService {
+	return &FileManager{}
 }
 
 func (f *FileManager) Create(dir string) {
@@ -47,36 +44,6 @@ func (f *FileManager) Remove(dir string) error {
 		return err
 	}
 
-	return nil
-}
-
-func (f *FileManager) CreateTemp() {
-	if f.TempDir != "" {
-		return // Temp directory already exists
-	}
-
-	// Use the fallback temp directory if provided, otherwise use the system temp directory
-	f.TempDir = filepath.Join(f.TempDir, "go-audiobook-temp")
-
-	if _, err := os.Stat(f.TempDir); os.IsNotExist(err) {
-		err = os.MkdirAll(f.TempDir, 0755)
-		if err != nil {
-			f.TempDir = f.fallbackTempDir
-		}
-	}
-}
-
-func (f *FileManager) RemoveTemp() error {
-	if f.TempDir == "" {
-		return nil // Nothing to remove
-	}
-
-	err := os.RemoveAll(f.TempDir)
-	if err != nil {
-		return err
-	}
-
-	f.TempDir = ""
 	return nil
 }
 
@@ -107,43 +74,46 @@ func (f *FileManager) Save(path, content string) error {
 	return nil
 }
 
-// func (f *FileManager) CreateTempDir(fallbackTempDir string) (string, error) {
-// 	// Check if we can create a file in the system temp directory.
-// 	sysTempDir := os.TempDir()
-// 	sysAppTempDir := filepath.Join(sysTempDir, "go-audiobook")
+func (f *FileManager) CreateCacheDir() (cacheDir string, err error) {
+	// Try system temp directory first
+	sysCacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	sysCachePath := filepath.Join(sysCacheDir, "go-audiobook") + "/"
 
-// 	if _, err := os.Stat(sysAppTempDir); !os.IsNotExist(err) {
-// 		return "", nil
-// 	}
+	os.RemoveAll(sysCachePath)
 
-// 	err := os.MkdirAll(sysAppTempDir, 0755)
-// 	if os.IsPermission(err) {
-// 		fmt.Println("Warning: Permission denied for system temp directory:", sysAppTempDir)
-// 	} else {
-// 		fmt.Println("Error: Unable to create or access the system temp directory:", err)
-// 	}
+	if err := f.createAndTestDir(sysCachePath); err == nil {
+		return sysCachePath, nil
+	}
 
-// 	if !f.CanCreate(sysAppTempDir) {
-// 		return "", fmt.Errorf("Error: Unable to create or access the system temp directory.")
-// 	}
+	// Last resort: fallback to local temp directory
+	if err := f.createAndTestDir(defaultCacheDir); err != nil {
+		return "", fmt.Errorf("failed to create temp directory in system temp, unique temp, or local fallback: %w", err)
+	}
 
-// 	return sysAppTempDir, nil
-// }
+	return defaultCacheDir, nil
+}
 
-// func (f *FileManager) CanCreate(path string) bool {
-// 	// Attempt to create a test file.
-// 	testFile := filepath.Join(path, "test.tmp")
-// 	file, err := os.Create(testFile)
-// 	if err != nil {
-// 		return false
-// 	}
+func (f *FileManager) createAndTestDir(path string) error {
+	// Try to create the directory
+	if err := os.MkdirAll(path, 0755); err != nil {
+		return err
+	}
 
-// 	file.Close()
-// 	// Attempt to remove the test file.
-// 	err = os.Remove(testFile)
-// 	if err != nil {
-// 		fmt.Println("Error: Unable to remove test file in system temp directory:", err)
-// 		return false
-// 	}
-// 	return true
-// }
+	// Test if we can actually write to it
+	testFile := filepath.Join(path, "test.tmp")
+	file, err := os.Create(testFile)
+	if err != nil {
+		return err
+	}
+	file.Close()
+
+	// Clean up test file
+	if err := os.Remove(testFile); err != nil {
+		return err
+	}
+
+	return nil
+}

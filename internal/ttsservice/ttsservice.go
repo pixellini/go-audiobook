@@ -17,7 +17,7 @@ type CoquiTTSService struct {
 	tts *coqui.TTS
 }
 
-func NewCoquiService(config *config.Config) (*CoquiTTSService, error) {
+func NewCoquiService(config *config.Config, outputDir string) (*CoquiTTSService, error) {
 
 	tts, err := coqui.New(
 		// coqui.WithModelPath(config.Model.Name),
@@ -26,7 +26,7 @@ func NewCoquiService(config *config.Config) (*CoquiTTSService, error) {
 		coqui.WithSpeakerIndex(config.Model.SpeakerIdx),
 		coqui.WithDevice(config.Model.Device),
 		coqui.WithMaxRetries(int(config.Model.MaxRetries)),
-		coqui.WithOutputDir(config.TempDir),
+		coqui.WithOutputDir(outputDir),
 	)
 
 	if err != nil {

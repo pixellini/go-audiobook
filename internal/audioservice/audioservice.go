@@ -1,6 +1,7 @@
 package audioservice
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -17,25 +18,36 @@ type AudioService interface {
 	CreateAudiobook(file, image, metadataPath, output string) error
 }
 
-type FFMpegService struct{}
+type FFMpegService struct {
+	outputDir string
+}
 
-func NewFFMpegService() *FFMpegService {
-	return &FFMpegService{}
+func NewFFMpegService(outputDir string) *FFMpegService {
+	return &FFMpegService{
+		outputDir: outputDir,
+	}
 }
 
 func (f *FFMpegService) CombineFiles(inputFiles []string, outputFile string) error {
 	// fmt.Println("Combining audio files:", len(inputFiles), "files into", outputFile)
 	if len(inputFiles) == 0 {
-		return nil
+		return fmt.Errorf("no input files provided for combination")
+	}
+
+	// Verify all input files exist
+	for _, inputFile := range inputFiles {
+		if _, err := os.Stat(inputFile); err != nil {
+			return fmt.Errorf("input file does not exist: %s - %w", inputFile, err)
+		}
 	}
 
 	// Create a temporary file list for FFmpeg concat
-	file, err := os.CreateTemp("./.temp/", "filelist-*.txt")
+	file, err := os.CreateTemp(f.outputDir, "filelist-*.txt")
 	if err != nil {
 		return err
 	}
-	// defer file.Close()
-	// defer os.Remove(file.Name()) // Clean up the temporary file
+	defer file.Close()
+	defer os.Remove(file.Name()) // Clean up the temporary file
 
 	// Write file list to temporary file
 	err = f.writeFileList(inputFiles, file.Name())
@@ -53,7 +65,6 @@ func (f *FFMpegService) CombineFiles(inputFiles []string, outputFile string) err
 		outputFile,
 	}
 
-	fmt.Println("FFmpeg command:", "ffmpeg", strings.Join(args, " "))
 	err = f.ffmpeg(args...)
 	if err != nil {
 		return fmt.Errorf("failed to concatenate audio files: %v", err)
@@ -109,19 +120,15 @@ func (f *FFMpegService) GetDuration(audioFilePath string) (float64, error) {
 
 func (f *FFMpegService) CreateAudiobook(file, image, metadataPath, output string) error {
 	return f.ffmpeg(
-		"-f", "ffmetadata",
 		"-i", file,
 		"-i", metadataPath,
-		"-f", "image2",
 		"-i", image,
 		"-map", "0:a",
-		"-map", "1",
-		"-map_metadata", "2",
-		"-id3v2_version", "3",
-		"-write_id3v1", "1",
+		"-map", "2:v",
+		"-map_metadata", "1",
 		"-c:a", "aac",
 		"-b:a", "64k",
-		"-c:v", "mjpeg",
+		"-c:v", "png",
 		"-disposition:v:0", "attached_pic",
 		"-f", "ipod",
 		output,
@@ -134,14 +141,14 @@ func (f *FFMpegService) ffmpeg(args ...string) error {
 
 func (f *FFMpegService) ffmpegContext(ctx context.Context, args ...string) error {
 	cmd := exec.CommandContext(ctx, "ffmpeg", args...)
-	// var stderr bytes.Buffer
-	// cmd.Stdout = os.Stdout
-	// cmd.Stderr = &stderr
+
+	var stderr bytes.Buffer
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = &stderr
 
 	err := cmd.Run()
 	if err != nil {
-		// return fmt.Errorf("ffmpeg failed: %v\n%s", err, stderr.String())
-		return fmt.Errorf("ffmpeg failed", err)
+		return fmt.Errorf("ffmpeg failed: %v\nStderr: %s", err, stderr.String())
 	}
 	return nil
 }
