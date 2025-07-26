@@ -15,8 +15,10 @@ import (
 	"github.com/pixellini/go-audiobook/internal/filemanager"
 	"github.com/pixellini/go-audiobook/internal/flags"
 	"github.com/pixellini/go-audiobook/internal/fsutils"
+	"github.com/pixellini/go-audiobook/internal/metadata"
 	"github.com/pixellini/go-audiobook/internal/textutils"
 	"github.com/pixellini/go-audiobook/internal/ttsservice"
+	"golang.org/x/sync/errgroup"
 )
 
 type Application struct {
@@ -38,7 +40,6 @@ func New() (*Application, error) {
 
 	fm := filemanager.New()
 	cacheDir, err := fm.CreateCacheDir()
-	// cacheDir := "./.cache/"
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize file manager")
 	}
@@ -77,7 +78,6 @@ func (app *Application) RunWithFlagsContext(ctx context.Context, fl *flags.Flags
 }
 
 func (app *Application) run(ctx context.Context, _ *flags.Flags) error {
-	app.fileManager.Remove(app.config.Output.Path)
 	defer app.fileManager.Remove(app.cacheDir)
 
 	epubPath := app.config.Epub.Path
@@ -92,8 +92,13 @@ func (app *Application) run(ctx context.Context, _ *flags.Flags) error {
 	if err != nil {
 		return fmt.Errorf("failed to read epub file: %w", err)
 	}
+	if app.config.Output.Filename == "" {
+		app.config.Output.Filename = book.Metadata.Title
+	}
 
-	fmt.Println(book.Metadata)
+	if fsutils.FileExists(app.config.Output.FullPath()) {
+		return fmt.Errorf("File '%s' has already been created.", app.config.Output.OutputFileName())
+	}
 
 	rawChapters, err := r.GetChapters()
 	if err != nil {
@@ -107,12 +112,18 @@ func (app *Application) run(ctx context.Context, _ *flags.Flags) error {
 
 	tempAudiobookFile := filepath.Join(app.cacheDir, "audiobook.wav")
 
-	metadata, err := app.BuildMetadataFile(chapters)
+	metadata, err := app.BuildMetadataFile(book.Metadata, chapters)
+
 	if err != nil {
 		return fmt.Errorf("failed to create metadata: %w", err)
 	}
-	defer metadata.Close()
-	defer os.Remove(metadata.Name())
+	defer metadata.Remove()
+
+	// Close the metadata file to ensure all data is written before FFmpeg uses it
+	err = metadata.Close()
+	if err != nil {
+		return fmt.Errorf("failed to close metadata file: %w", err)
+	}
 
 	// Turn all the chapter wav files into a singular wav file.
 	err = app.CombineChapters(chapters, tempAudiobookFile)
@@ -142,11 +153,20 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 	processedChapters := make([]*epub.EpubChapter, 0, len(chapters))
 
 	chapterNumber := 1
-	for _, chapter := range chapters[:6] {
+	for _, chapter := range chapters {
 		ch, err := epub.NewChapter(chapter.Id, chapter.Title, chapter.Content)
 		if err != nil || !ch.IsValid() {
 			continue
 		}
+		ch.Path = filepath.Join(app.cacheDir, fmt.Sprintf("chapter-%d.wav", chapterNumber))
+
+		if fsutils.FileExists(ch.Path) {
+			fmt.Printf("Chapter %d audio file already exists, skipping.", chapterNumber)
+			processedChapters = append(processedChapters, ch)
+			chapterNumber++
+			continue
+		}
+
 		files, err := app.CreateChapterAudio(ctx, ch, chapterNumber)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create chapter audio for chapter %d: %w", chapterNumber, err)
@@ -157,30 +177,17 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 			continue
 		}
 
+		// Sort the paragraph files numerically, because they might be out of order due to concurrency.
 		fsutils.SortNumerically(files)
 
-		ch.Path = filepath.Join(app.cacheDir, fmt.Sprintf("chapter-%d.wav", chapterNumber))
-
-		// Check if chapter file already exists
-		if _, err := os.Stat(ch.Path); err == nil {
-			log.Printf("Chapter %d audio file already exists, skipping combination", chapterNumber)
-		} else {
-			if len(files) == 0 {
-				return nil, fmt.Errorf("no audio files available for chapter %d", chapterNumber)
-			}
-			err = app.audio.CombineFiles(files, ch.Path)
-			if err != nil {
-				return nil, fmt.Errorf("error combining files for chapter %d: %w", chapterNumber, err)
-			}
+		err = app.audio.CombineFiles(files, ch.Path)
+		if err != nil {
+			return nil, fmt.Errorf("error combining files for chapter %d: %w", chapterNumber, err)
 		}
 
 		processedChapters = append(processedChapters, ch)
 
-		for _, file := range files {
-			if err = os.Remove(file); err != nil {
-				fmt.Printf("\nunable to remove file: %s", err)
-			}
-		}
+		app.fileManager.RemoveFiles(files)
 
 		chapterNumber++
 	}
@@ -189,69 +196,54 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 }
 
 func (app *Application) CreateChapterAudio(ctx context.Context, chapter *epub.EpubChapter, chapterNumber int) ([]string, error) {
-	// Split up the text and clean the content
 	text := textutils.ExtractParagraphsFromHTML(chapter.Content)
 	if len(text) == 0 {
 		return nil, fmt.Errorf("chapter does not have text")
 	}
 
-	// We can use the first paragraph as the title
 	chapter.Title = fmt.Sprintf("Chapter %d: %s", chapterNumber, text[0])
-	text[0] = chapter.Title // Use the first paragraph as the title
+	text[0] = chapter.Title
 
-	sem := make(chan struct{}, app.config.Model.Concurrency)
-	var wg sync.WaitGroup
-
-	// Use a mutex to protect the files slice
-	var mu sync.Mutex
 	var files []string
+	var mu sync.Mutex
 
-	for i, paragraph := range text[:3] {
-		if paragraph == "" {
-			continue
-		}
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.SetLimit(int(app.config.Model.Concurrency))
 
-		fileName := fmt.Sprintf("part-%d.wav", i+1)
-		filePath := filepath.Join(app.cacheDir, fileName)
-
-		// Check if file already exists
-		if _, err := os.Stat(filePath); err == nil {
-			// File exists, add it to the list
-			mu.Lock()
-			files = append(files, filePath)
-			mu.Unlock()
-			continue
-		}
-
-		// File doesn't exist, need to synthesize
-		sem <- struct{}{} // acquire a slot
-		wg.Add(1)
-
-		go func(p string, idx int, fPath string) {
-			defer wg.Done()
-			defer func() { <-sem }() // release the slot
-
-			_, err := app.tts.SynthesizeContext(ctx, text[idx], fileName)
-			if err != nil {
-				log.Printf("error synthesizing chapter %d part %d: %v", chapterNumber, idx, err)
-				return // Don't add failed files
-			}
-
-			// Verify file was created
-			if _, err := os.Stat(fPath); err != nil {
-				log.Printf("synthesized file not found for chapter %d part %d: %v", chapterNumber, idx, err)
-				return
-			}
-
-			// Thread-safe append
-			mu.Lock()
-			files = append(files, fPath)
-			mu.Unlock()
-		}(paragraph, i, filePath)
+	add := func(p string) error {
+		mu.Lock()
+		files = append(files, p)
+		mu.Unlock()
+		return nil
 	}
 
-	wg.Wait()
+	for i, p := range text {
+		if p == "" {
+			continue
+		}
+		i, p := i, p // capture
+		eg.Go(func() error {
+			name := fmt.Sprintf("paragraph-%d.wav", i+1)
+			path := filepath.Join(app.cacheDir, name)
 
+			if fsutils.FileExists(path) {
+				return add(path)
+			}
+
+			if _, err := app.tts.SynthesizeContext(ctx, p, name); err != nil {
+				return fmt.Errorf("chapter %d part %d: %w", chapterNumber, i+1, err)
+			}
+			if !fsutils.FileExists(path) {
+				return fmt.Errorf("synthesised file missing for chapter %d part %d", chapterNumber, i+1)
+			}
+
+			return add(path)
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
+	}
 	return files, nil
 }
 
@@ -267,35 +259,24 @@ func (app *Application) CombineChapters(chapters []*epub.EpubChapter, output str
 	}
 
 	// No longer need the chapter audio files
-	for _, file := range chapters {
-		err := os.Remove(file.Path)
-		if err != nil {
-			fmt.Printf("\nunable to remove file: %s", err)
-		}
-	}
+	app.fileManager.RemoveFiles(files)
 
 	return nil
 }
 
-func (app *Application) BuildMetadataFile(chapters []*epub.EpubChapter) (*os.File, error) {
-	file, err := os.CreateTemp(app.cacheDir, "metadata-*.txt")
+func (app *Application) BuildMetadataFile(book *epub.EpubMetadata, chapters []*epub.EpubChapter) (*metadata.Metadata, error) {
+	metaFile, err := metadata.New(app.cacheDir)
 	if err != nil {
 		return nil, err
 	}
-	// Don't defer close here since we're returning the file
-
-	_, err = file.WriteString(";FFMETADATA1\n")
-	if err != nil {
-		file.Close()
-		return nil, err
-	}
+	metaFile.AddDetails(book)
 
 	startTime := 0
 
 	for _, chapter := range chapters {
 		// Verify chapter file exists before trying to get duration
 		if _, err := os.Stat(chapter.Path); err != nil {
-			file.Close()
+			metaFile.Close()
 			return nil, fmt.Errorf("chapter file does not exist: %s - %w", chapter.Path, err)
 		}
 
@@ -303,54 +284,21 @@ func (app *Application) BuildMetadataFile(chapters []*epub.EpubChapter) (*os.Fil
 		// Then append it to the startTime so that we can calculate the endTime for the next chapter.
 		duration, err := app.audio.GetDuration(chapter.Path)
 		if err != nil {
-			file.Close()
-			return nil, fmt.Errorf("failed to get duration for chapter file %s: %w", chapter.Path, err)
+			metaFile.Close()
+			return nil, fmt.Errorf("failed to get duration for chapter: %s: %w", chapter.Title, err)
 		}
 
 		durationMs := int(duration * 1000)
 		endTime := startTime + durationMs
 
-		_, err = file.WriteString("[CHAPTER]\n")
+		err = metaFile.AddChapter(chapter.Title, startTime, endTime)
 		if err != nil {
-			file.Close()
-			return nil, err
-		}
-		_, err = file.WriteString("TIMEBASE=1/1000\n")
-		if err != nil {
-			file.Close()
-			return nil, err
-		}
-		_, err = file.WriteString(fmt.Sprintf("START=%d\n", startTime))
-		if err != nil {
-			file.Close()
-			return nil, err
-		}
-		_, err = file.WriteString(fmt.Sprintf("END=%d\n", endTime))
-		if err != nil {
-			file.Close()
-			return nil, err
-		}
-		_, err = file.WriteString(fmt.Sprintf("title=%s\n\n", chapter.Title))
-		if err != nil {
-			file.Close()
-			return nil, err
+			metaFile.Close()
+			return nil, fmt.Errorf("failed to create metadata for chapter: %s: %w", chapter.Title, err)
 		}
 
 		startTime = endTime
 	}
 
-	// Flush and seek to beginning for reading
-	err = file.Sync()
-	if err != nil {
-		file.Close()
-		return nil, err
-	}
-
-	_, err = file.Seek(0, 0)
-	if err != nil {
-		file.Close()
-		return nil, err
-	}
-
-	return file, nil
+	return metaFile, nil
 }

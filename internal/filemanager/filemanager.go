@@ -1,6 +1,7 @@
 package filemanager
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 type FileService interface {
 	Create(dir string)
 	Remove(dir string) error
+	RemoveFiles(paths []string) error
 	Save(path, content string) error
 	CreateCacheDir() (cacheDir string, err error)
 }
@@ -45,6 +47,19 @@ func (f *FileManager) Remove(dir string) error {
 	}
 
 	return nil
+
+}
+
+func (f *FileManager) RemoveFiles(paths []string) error {
+	var errs []error
+
+	for _, p := range paths {
+		if err := os.Remove(p); err != nil {
+			errs = append(errs, fmt.Errorf("\nunable to remove %s: %w", p, err))
+		}
+	}
+
+	return errors.Join(errs...)
 }
 
 func (f *FileManager) Save(path, content string) error {
@@ -81,8 +96,6 @@ func (f *FileManager) CreateCacheDir() (cacheDir string, err error) {
 		return "", err
 	}
 	sysCachePath := filepath.Join(sysCacheDir, "go-audiobook") + "/"
-
-	os.RemoveAll(sysCachePath)
 
 	if err := f.createAndTestDir(sysCachePath); err == nil {
 		return sysCachePath, nil

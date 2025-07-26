@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pixellini/go-coqui/model"
+	"github.com/pixellini/go-coqui/models/vocoder"
 	"github.com/spf13/viper"
 )
 
@@ -27,8 +28,8 @@ type Epub struct {
 }
 
 type Output struct {
-	Path     string `mapstructure:"path"`
-	Format   string `mapstructure:"format"`
+	Path string `mapstructure:"path"`
+	// Format   string `mapstructure:"format"`
 	Filename string `mapstructure:"filename"`
 }
 
@@ -46,6 +47,8 @@ type Vocoder struct {
 	Name     string         `mapstructure:"name"`
 	Language model.Language `mapstructure:"language"`
 }
+
+const defaultConcurrency = 4
 
 func Load() (*Config, error) {
 	viper.SetConfigName("config")
@@ -67,23 +70,35 @@ func Load() (*Config, error) {
 		config.Output.Path += "/"
 	}
 
+	// we can only allow positive numbers for concurrency
+	if config.Model.Concurrency < 1 {
+		config.Model.Concurrency = defaultConcurrency
+	}
+
 	return config, nil
 }
 
 func setDefaults() {
-	// 	// Set default values if not present in config
-	// 	viper.SetDefault("image_path", "")
-	// 	viper.SetDefault("temp_dir", "./.temp")
-	// 	viper.SetDefault("output_format", "m4b")
-	// 	viper.SetDefault("verbose_logs", false)
-	// 	viper.SetDefault("test_mode", false)
-	// 	viper.SetDefault("tts.max_retries", 3)
-	// 	viper.SetDefault("tts.concurrency", 4)
-	// 	viper.SetDefault("tts.use_vits", false)
-	// 	viper.SetDefault("tts.vits_voice", "p287")
-	// 	viper.SetDefault("tts.device", "auto")
+	// Set default values if not present in config
+	viper.SetDefault("output.path", "./.dist/")
+	viper.SetDefault("output.format", "m4b")
+
+	// Model Defaults
+	viper.SetDefault("model.name", "tts_models/multilingual/multi-dataset/xtts_v2")
+	viper.SetDefault("model.speaker_idx", "p286")
+	viper.SetDefault("model.language", model.English)
+	viper.SetDefault("model.concurrency", defaultConcurrency)
+	viper.SetDefault("model.max_retries", 5)
+	viper.SetDefault("model.device", model.DeviceCPU)
+
+	viper.SetDefault("vocoder.name", vocoder.PresetHifiganV2Blizzard2013.Name())
+	viper.SetDefault("vocoder.language", model.English)
+}
+
+func (o Output) OutputFileName() string {
+	return o.Filename + ".m4b"
 }
 
 func (o Output) FullPath() string {
-	return o.Path + o.Filename + "." + o.Format
+	return o.Path + o.OutputFileName()
 }
