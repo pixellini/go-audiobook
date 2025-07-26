@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"github.com/pixellini/go-audiobook/internal/audioservice"
 	"github.com/pixellini/go-audiobook/internal/config"
@@ -80,6 +81,8 @@ func (app *Application) RunWithFlagsContext(ctx context.Context, fl *flags.Flags
 func (app *Application) run(ctx context.Context, _ *flags.Flags) error {
 	defer app.fileManager.Remove(app.cacheDir)
 
+	start := time.Now()
+
 	epubPath := app.config.Epub.Path
 	r, err := epubreader.NewGoEpubReaderService(epubPath)
 	if err != nil {
@@ -146,6 +149,8 @@ func (app *Application) run(ctx context.Context, _ *flags.Flags) error {
 
 	_ = os.Remove(tempAudiobookFile)
 
+	fmt.Printf("\n\nAudiobook created! %v \n\n", time.Since(start))
+
 	return nil
 }
 
@@ -153,7 +158,7 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 	processedChapters := make([]*epub.EpubChapter, 0, len(chapters))
 
 	chapterNumber := 1
-	for _, chapter := range chapters {
+	for _, chapter := range chapters[:6] {
 		ch, err := epub.NewChapter(chapter.Id, chapter.Title, chapter.Content)
 		if err != nil || !ch.IsValid() {
 			continue
