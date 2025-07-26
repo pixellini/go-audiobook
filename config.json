@@ -1,6 +1,4 @@
 {
-  "verbose_logs": false,
-  "test_mode": true,
   "epub": {
     "path": "./examples/test/book.epub",
     "cover_image": "./examples/test/cover.png",
@@ -9,23 +7,5 @@
     "language": "en",
     "publisher": "Test Publisher",
     "description": "This is a test book for the audiobook generation."
-  },
-  "output": {
-    "path": "./.dist",
-    "format": "m4b",
-    "filename": "test_audiobook"
-  },
-  "model": {
-    "name": "tts_models/multilingual/multi-dataset/xtts_v2",
-    "language": "en",
-    "speaker_wav": "./speakers/speaker.wav",
-    "speaker_idx": "p285",
-    "concurrency": 8,
-    "max_retries": 5,
-    "device": "cpu"
-  },
-  "vocoder": {
-    "name": "vocoder_models/en/blizzard2013/hifigan_v2",
-    "language": "en"
   }
 }
