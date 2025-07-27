@@ -31,7 +31,9 @@ func (f *FileManager) Create(dir string) {
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.MkdirAll(dir, 0755)
 		if err != nil {
-			panic("Error creating directory: " + err.Error())
+			// Return error instead of panic
+			fmt.Fprintf(os.Stderr, "Error creating directory %s: %v\n", dir, err)
+			return
 		}
 	}
 }

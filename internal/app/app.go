@@ -16,9 +16,11 @@ import (
 	"github.com/pixellini/go-audiobook/internal/filemanager"
 	"github.com/pixellini/go-audiobook/internal/flags"
 	"github.com/pixellini/go-audiobook/internal/fsutils"
+	"github.com/pixellini/go-audiobook/internal/logger"
 	"github.com/pixellini/go-audiobook/internal/metadata"
 	"github.com/pixellini/go-audiobook/internal/textutils"
 	"github.com/pixellini/go-audiobook/internal/ttsservice"
+	"github.com/pixellini/go-audiobook/internal/tui"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -28,6 +30,8 @@ type Application struct {
 	tts         ttsservice.TTSservice
 	audio       audioservice.AudioService
 	flag        *flags.Flags
+	tui         tui.TUIService
+	logger      logger.Logger
 
 	chapters []*epubreader.EpubReaderChapter
 	cacheDir string
@@ -54,11 +58,26 @@ func New() (*Application, error) {
 
 	ffmpeg := audioservice.NewFFMpegService(cacheDir)
 
+	// Create logger based on config
+	var (
+		l logger.Logger
+		t tui.TUIService
+	)
+	if c.VerboseLogs {
+		l = logger.NewLogger()
+		t = tui.NewEmpty()
+	} else {
+		t = tui.NewBubbleTeaUI()
+		l = logger.NewSilentLogger()
+	}
+
 	return &Application{
 		config:      c,
 		fileManager: fm,
 		tts:         tts,
 		audio:       ffmpeg,
+		tui:         t,
+		logger:      l,
 		cacheDir:    cacheDir,
 	}, nil
 }
@@ -87,6 +106,14 @@ func (app *Application) run(ctx context.Context) error {
 
 	if app.flag.ResetProgress {
 		app.Reset()
+	}
+
+	// Use TUI unless verbose logging is enabled in config
+	// Start the TUI for progress tracking
+	if err := app.tui.Start(); err != nil {
+		log.Printf("Failed to start TUI: %v", err)
+	} else {
+		defer app.tui.Stop()
 	}
 
 	start := time.Now()
@@ -137,6 +164,7 @@ func (app *Application) run(ctx context.Context) error {
 	}
 
 	// Turn all the chapter wav files into a singular wav file.
+	app.tui.UpdateProgress("Combining all chapters into audiobook...")
 	err = app.CombineChapters(chapters, tempAudiobookFile)
 	if err != nil {
 		return fmt.Errorf("failed to combine chapter files: %w", err)
@@ -145,6 +173,7 @@ func (app *Application) run(ctx context.Context) error {
 	app.fileManager.Create(app.config.Output.Path)
 
 	// Create the M4B audiobook file.
+	app.tui.UpdateProgress("Creating final audiobook file...")
 	err = app.audio.CreateAudiobook(
 		tempAudiobookFile,
 		app.config.Epub.CoverImage,
@@ -157,7 +186,14 @@ func (app *Application) run(ctx context.Context) error {
 
 	_ = os.Remove(tempAudiobookFile)
 
-	fmt.Printf("\n\nAudiobook created! %v \n\n", time.Since(start))
+	// Show completion message
+	completionTime := time.Since(start).Truncate(time.Second)
+	completionMsg := fmt.Sprintf("🎉 Audiobook \"%s\" created successfully! (%v)", app.config.Output.OutputFileName(), completionTime)
+	if app.tui != nil {
+		app.tui.Finish(completionMsg)
+	} else {
+		fmt.Print(completionMsg)
+	}
 
 	return nil
 }
@@ -173,8 +209,13 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 		}
 		ch.Path = filepath.Join(app.cacheDir, fmt.Sprintf("chapter-%d.wav", chapterNumber))
 
+		// Update TUI with current chapter being processed
+		app.tui.UpdateProgress(fmt.Sprintf("Processing — %s", ch.Title))
+
 		if fsutils.FileExists(ch.Path) {
 			processedChapters = append(processedChapters, ch)
+			// Mark chapter as complete (cached)
+			app.tui.CompleteCurrentTask(fmt.Sprintf("Chapter %d (cached): %s", chapterNumber, ch.Title))
 			chapterNumber++
 			continue
 		}
@@ -191,7 +232,7 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 		}
 
 		if len(files) == 0 {
-			log.Printf("No audio files created for chapter %d, skipping", chapterNumber)
+			app.logger.Printf("No audio files created for chapter %d, skipping", chapterNumber)
 			continue
 		}
 
@@ -204,6 +245,9 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 		}
 
 		processedChapters = append(processedChapters, ch)
+
+		// Mark chapter as complete
+		app.tui.CompleteCurrentTask(fmt.Sprintf("Chapter %d completed: %s", chapterNumber, ch.Title))
 
 		app.fileManager.RemoveFiles(files)
 
@@ -224,6 +268,13 @@ func (app *Application) CreateChapterAudio(ctx context.Context, chapter *epub.Ep
 
 	var files []string
 	var mu sync.Mutex
+	var completed int
+	totalParagraphs := len(text)
+
+	// Initialize progress
+	app.tui.UpdateProgressWithBar(
+		fmt.Sprintf("Processing — %s", chapter.Title), 0, totalParagraphs,
+	)
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.SetLimit(int(app.config.Model.Concurrency))
@@ -231,7 +282,15 @@ func (app *Application) CreateChapterAudio(ctx context.Context, chapter *epub.Ep
 	add := func(p string) error {
 		mu.Lock()
 		files = append(files, p)
+		completed++
+		currentCompleted := completed
 		mu.Unlock()
+
+		// Update progress bar
+		app.tui.UpdateProgressWithBar(
+			fmt.Sprintf("Processing — %s", chapter.Title), currentCompleted, totalParagraphs,
+		)
+
 		return nil
 	}
 
@@ -328,4 +387,8 @@ func (app *Application) BuildMetadataFile(book *epub.EpubMetadata, chapters []*e
 func (app *Application) Reset() {
 	app.fileManager.Remove(app.config.Output.Path)
 	app.fileManager.Remove(app.cacheDir)
+}
+
+func (app *Application) ToggleTUI() {
+
 }
