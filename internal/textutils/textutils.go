@@ -8,60 +8,84 @@ import (
 	strip "github.com/grokify/html-strip-tags-go"
 )
 
+const textDelimiter = "|||"
+const maxCharSizeLimitTTS = 250
+
+var (
+	sentenceRegex  = regexp.MustCompile(`([.!?])\s+([A-Z])`)
+	paragraphRegex = regexp.MustCompile(`\n\s*\n`)
+)
+
 // SplitText splits the content into sentences based on punctuation and line breaks.
 func SplitText(content string) []string {
-	// First, extract clean text from HTML content
 	cleanText := ExtractTextFromHTML(content)
-
-	// Split into paragraphs first (double newlines or <p> boundaries)
-	paragraphs := SplitIntoParagraphs(cleanText)
-
-	var sentences []string
-	for _, paragraph := range paragraphs {
-		// Split each paragraph into sentences
-		paragraphSentences := SplitIntoSentences(paragraph)
-		sentences = append(sentences, paragraphSentences...)
-	}
-
-	return sentences
+	return SplitIntoParagraphs(cleanText)
 }
 
 // ExtractTextFromHTML extracts plain text from HTML content, preserving paragraph structure
 func ExtractTextFromHTML(htmlContent string) string {
-	// Parse the HTML
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
 	if err != nil {
-		// If parsing fails, fall back to simple tag stripping
-		return strip.StripTags(htmlContent)
+		return cleanText(strip.StripTags(htmlContent))
 	}
 
 	var textParts []string
-
-	// Extract text from paragraphs, preserving structure
 	doc.Find("p, div, h1, h2, h3, h4, h5, h6").Each(func(i int, s *goquery.Selection) {
 		text := strings.TrimSpace(s.Text())
-		if text != "" {
+		if text != "" && isValidContent(text) {
 			textParts = append(textParts, text)
 		}
 	})
 
-	// If no structured elements found, extract all text
 	if len(textParts) == 0 {
-		return strings.TrimSpace(strip.StripTags(htmlContent))
+		return cleanText(strip.StripTags(htmlContent))
 	}
 
 	return strings.Join(textParts, "\n\n")
 }
 
-// SplitIntoParagraphs splits text into paragraphs
-func SplitIntoParagraphs(text string) []string {
-	// Split on double newlines
-	paragraphs := regexp.MustCompile(`\n\s*\n`).Split(text, -1)
+// isValidContent filters out XML/CSS declarations and other non-content
+func isValidContent(text string) bool {
+	text = strings.TrimSpace(text)
 
+	return text != "" &&
+		!strings.HasPrefix(text, "<?xml") &&
+		!strings.HasPrefix(text, "<!DOCTYPE") &&
+		!strings.HasPrefix(text, "@page") &&
+		!(strings.IndexByte(text, '.') == 0 && strings.IndexByte(text, '{') != -1) &&
+		!(strings.IndexByte(text, '#') == 0 && strings.IndexByte(text, '{') != -1)
+}
+
+// cleanText removes unwanted content lines
+func cleanText(text string) string {
+	lines := strings.Split(text, "\n")
+	var cleanLines []string
+
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line != "" && isValidContent(line) {
+			cleanLines = append(cleanLines, line)
+		}
+	}
+
+	return strings.Join(cleanLines, "\n")
+}
+
+// SplitIntoParagraphs splits text into manageable chunks for TTS
+func SplitIntoParagraphs(text string) []string {
+	paragraphs := paragraphRegex.Split(text, -1)
 	var result []string
+
 	for _, p := range paragraphs {
 		p = strings.TrimSpace(p)
-		if p != "" {
+		if p == "" {
+			continue
+		}
+
+		// Split the long paragraphs
+		if len(p) > maxCharSizeLimitTTS+50 {
+			result = append(result, splitLongText(p)...)
+		} else {
 			result = append(result, p)
 		}
 	}
@@ -69,50 +93,105 @@ func SplitIntoParagraphs(text string) []string {
 	return result
 }
 
-// SplitIntoSentences splits a paragraph into individual sentences
-func SplitIntoSentences(paragraph string) []string {
-	// Clean up the text
-	text := strings.TrimSpace(paragraph)
-	if text == "" {
-		return nil
-	}
-
-	// Regex to split on sentence endings (.!?) followed by whitespace and capital letter
-	// but not on common abbreviations
-	sentenceRegex := regexp.MustCompile(`([.!?]+)\s+([A-Z])`)
-
-	// Replace sentence boundaries with a special marker
-	marked := sentenceRegex.ReplaceAllString(text, `$1|||$2`)
-
-	// Split on our marker
-	sentences := strings.Split(marked, "|||")
+// splitLongText splits long text on sentences, and if still too long, on commas
+func splitLongText(text string) []string {
+	// Try splitting on sentence boundaries first.
+	// The triple pipe ||| is functioning as a custom delimiter that's unlikely to exist in normal text.
+	formattedText := sentenceRegex.ReplaceAllString(text, "$1"+textDelimiter+"$2")
+	sentences := strings.Split(formattedText, textDelimiter)
 
 	var result []string
-	for i, sentence := range sentences {
+	textLengthLimit := maxCharSizeLimitTTS - 50
+
+	for _, sentence := range sentences {
 		sentence = strings.TrimSpace(sentence)
 		if sentence == "" {
 			continue
 		}
 
-		// Rejoin with the next sentence's first character if needed
-		if i < len(sentences)-1 && !strings.HasSuffix(sentence, ".") &&
-			!strings.HasSuffix(sentence, "!") && !strings.HasSuffix(sentence, "?") {
-			continue
+		// If sentence is still too long, split on commas
+		if len(sentence) > textLengthLimit {
+			result = append(result, splitOnCommas(sentence)...)
+		} else {
+			result = append(result, sentence)
 		}
-
-		result = append(result, sentence)
 	}
 
-	// If no sentences were split, return the whole paragraph as one sentence
+	// Fallback if no splitting occurred
 	if len(result) == 0 {
+		if len(text) > textLengthLimit {
+			return splitOnCommas(text)
+		}
 		return []string{text}
 	}
 
 	return result
 }
 
+// splitOnCommas splits text on commas
+// There's additional logic here because strings.Split() will only give us tiny fragments that waste the 250 char TTS limit.
+// Instead, we pack as many comma parts as possible into each chunk until we hit the limit, then start fresh.
+// This way we get fewer API calls and more natural sounding speech.
+func splitOnCommas(text string) []string {
+	// The size limit for TTS is usually 250 characters, so if the paragraph is shorter than that, then it should be fine
+	if len(text) < maxCharSizeLimitTTS || strings.IndexByte(text, ',') == -1 {
+		return []string{text}
+	}
+
+	parts := strings.Split(text, ",")
+	if len(parts) <= 1 {
+		return []string{text}
+	}
+
+	var result []string
+	var builder strings.Builder
+	builder.Grow(maxCharSizeLimitTTS + 50)
+
+	// Here is where we loop through and pack as many comma parts into the TTS limit
+	for i, part := range parts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		// Calculate the length we'd need if we add this part
+		needLen := builder.Len()
+		if needLen > 0 {
+			needLen++
+		}
+		needLen += len(part)
+		if i < len(parts)-1 {
+			needLen++
+		}
+
+		// If adding this part would exceed TTS limit and we have content, flush current chunk (sentence)
+		if needLen > maxCharSizeLimitTTS && builder.Len() > 0 {
+			result = append(result, builder.String())
+			builder.Reset()
+		}
+
+		// Add a separator
+		if builder.Len() > 0 {
+			builder.WriteByte(' ')
+		}
+
+		builder.WriteString(part)
+
+		// Add comma back unless it's the end of the sentence
+		if i < len(parts)-1 {
+			builder.WriteByte(',')
+		}
+	}
+
+	// Add remaining content
+	if builder.Len() > 0 {
+		result = append(result, builder.String())
+	}
+
+	return result
+}
+
 // ExtractParagraphsFromHTML extracts paragraphs as plain text strings from HTML content
-// This is a simpler alternative if you just want paragraphs instead of sentences
 func ExtractParagraphsFromHTML(htmlContent string) []string {
 	cleanText := ExtractTextFromHTML(htmlContent)
 	return SplitIntoParagraphs(cleanText)
