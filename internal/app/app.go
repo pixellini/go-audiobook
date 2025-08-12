@@ -203,7 +203,7 @@ func (app *Application) run(ctx context.Context) error {
 
 	// Show completion message
 	completionTime := time.Since(start).Truncate(time.Second)
-	completionMsg := fmt.Sprintf("🎉 Audiobook \"%s\" created successfully! (%v)", app.config.Output.OutputFileName(), completionTime)
+	completionMsg := fmt.Sprintf("\n🎉 Audiobook \"%s\" created successfully! (%v)\n", app.config.Output.OutputFileName(), completionTime)
 
 	// Stop TUI first to ensure clean terminal state
 	if !app.config.VerboseLogs {
