@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -106,14 +107,27 @@ func (app *Application) run(ctx context.Context) error {
 
 	if app.flag.ResetProgress {
 		app.Reset()
+		// Recreate cache directory after reset
+		var err error
+		app.cacheDir, err = app.fileManager.CreateCacheDir()
+		if err != nil {
+			return fmt.Errorf("failed to recreate cache directory after reset: %w", err)
+		}
+
+		// Reinitialize TTS service with new cache directory
+		app.tts, err = ttsservice.NewCoquiService(app.config, app.cacheDir)
+		if err != nil {
+			return fmt.Errorf("failed to reinitialize TTS service after reset: %w", err)
+		}
+
+		// Reinitialize audio service with new cache directory
+		app.audio = audioservice.NewFFMpegService(app.cacheDir)
 	}
 
 	// Use TUI unless verbose logging is enabled in config
 	// Start the TUI for progress tracking
 	if err := app.tui.Start(); err != nil {
 		log.Printf("Failed to start TUI: %v", err)
-	} else {
-		defer app.tui.Stop()
 	}
 
 	start := time.Now()
@@ -134,6 +148,7 @@ func (app *Application) run(ctx context.Context) error {
 		app.config.Output.Filename = book.Metadata.Title
 	}
 
+	// File existence check
 	if fsutils.FileExists(app.config.Output.FullPath()) {
 		return fmt.Errorf("File '%s' has already been created.", app.config.Output.OutputFileName())
 	}
@@ -189,11 +204,18 @@ func (app *Application) run(ctx context.Context) error {
 	// Show completion message
 	completionTime := time.Since(start).Truncate(time.Second)
 	completionMsg := fmt.Sprintf("🎉 Audiobook \"%s\" created successfully! (%v)", app.config.Output.OutputFileName(), completionTime)
-	if app.tui != nil {
-		app.tui.Finish(completionMsg)
-	} else {
-		fmt.Print(completionMsg)
+
+	// Stop TUI first to ensure clean terminal state
+	if !app.config.VerboseLogs {
+		app.tui.Stop()
+		// Give time for alternate screen to exit.
+		// If we don't have this, nothing will get outputted to the terminal.
+		// TODO: Check if there's a better way of doing this.
+		time.Sleep(200 * time.Millisecond)
 	}
+
+	fmt.Printf("%s\n", completionMsg)
+	os.Stdout.Sync()
 
 	return nil
 }
