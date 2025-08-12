@@ -285,8 +285,15 @@ func (app *Application) CreateChapterAudio(ctx context.Context, chapter *epub.Ep
 		return nil, fmt.Errorf("chapter does not have text")
 	}
 
-	chapter.Title = fmt.Sprintf("Chapter %d: %s", chapterNumber, text[0])
-	text[0] = chapter.Title
+	// If the chapter doesn't have a proper title, create a simple one
+	if chapter.Title == "" {
+		chapter.Title = fmt.Sprintf("Chapter %d", chapterNumber)
+	} else {
+		// If we have a title, prepend chapter number only if it doesn't already contain it
+		if !strings.Contains(strings.ToLower(chapter.Title), "chapter") {
+			chapter.Title = fmt.Sprintf("Chapter %d: %s", chapterNumber, chapter.Title)
+		}
+	}
 
 	var files []string
 	var mu sync.Mutex
