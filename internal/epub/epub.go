@@ -2,6 +2,7 @@ package epub
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/pixellini/go-audiobook/internal/epubreader"
@@ -70,24 +71,45 @@ func NewChapter(id, title, content string) (*EpubChapter, error) {
 	}, nil
 }
 
+// Validation lists
+var excludedTypes = []string{"css", "ncx", "stylesheet", "style"}
+var invalidTitlePrefixes = []string{"<?xml", "@page", ".", "#"}
+var validIdTypes = []string{"dedication", "title", "foreword", "preface", "ch", "id"}
+var filteredTitles = []string{"contents", "table of contents"}
+
 func (c EpubChapter) IsValid() bool {
-	// First check if it's a valid chapter type based on ID
 	id := strings.ToLower(c.Id)
-	isValidType :=
-		strings.Contains(id, "dedication") ||
-			// strings.Contains(id, "title") ||
-			strings.Contains(id, "foreword") ||
-			strings.Contains(id, "preface") ||
-			strings.HasPrefix(id, "ch") ||
-			strings.HasPrefix(id, "id")
+	title := strings.TrimSpace(strings.ToLower(c.Title))
 
-	if !isValidType {
-		return false
-	}
+	return !hasExcludedIdType(id) &&
+		!hasInvalidTitlePrefix(title) &&
+		hasValidIdType(id) &&
+		!isFilteredTitle(title)
+}
 
-	// Then check if the chapter title should be filtered out
-	t := strings.TrimSpace(strings.ToLower(c.Title))
-	shouldFilter := t == "contents" || t == "table of contents"
+// Validation methods
+func matchesAny(slice []string, value string, matchFunc func(string, string) bool) bool {
+	return slices.ContainsFunc(slice, func(item string) bool {
+		return matchFunc(value, item)
+	})
+}
 
-	return !shouldFilter
+func hasExcludedIdType(id string) bool {
+	return matchesAny(excludedTypes, id, strings.Contains)
+}
+
+func hasInvalidTitlePrefix(title string) bool {
+	return matchesAny(invalidTitlePrefixes, title, strings.HasPrefix)
+}
+
+func hasValidIdType(id string) bool {
+	return matchesAny(validIdTypes, id, func(value, pattern string) bool {
+		return strings.Contains(value, pattern) || strings.HasPrefix(value, pattern)
+	})
+}
+
+func isFilteredTitle(title string) bool {
+	return matchesAny(filteredTitles, title, func(value, pattern string) bool {
+		return value == pattern
+	})
 }
