@@ -196,3 +196,23 @@ func ExtractParagraphsFromHTML(htmlContent string) []string {
 	cleanText := ExtractTextFromHTML(htmlContent)
 	return SplitIntoParagraphs(cleanText)
 }
+
+// ExtractTitleFromHTML extracts the chapter title from HTML content by looking for heading tags
+func ExtractTitleFromHTML(htmlContent string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(htmlContent))
+	if err != nil {
+		return ""
+	}
+
+	// Look for title in heading tags, prioritising h1, then h2, etc.
+	headingSelectors := []string{"h1", "h2", "h3", "h4", "h5", "h6"}
+	
+	for _, selector := range headingSelectors {
+		title := strings.TrimSpace(doc.Find(selector).First().Text())
+		if title != "" && isValidContent(title) {
+			return title
+		}
+	}
+
+	return ""
+}

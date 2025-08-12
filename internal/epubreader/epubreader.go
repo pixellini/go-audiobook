@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/pixellini/go-audiobook/internal/textutils"
 	epubReader "github.com/taylorskalyo/goreader/epub"
 )
 
@@ -91,10 +92,13 @@ func (g *GoEpubReaderService) GetChapter(index int) (*EpubReaderChapter, error) 
 		return nil, fmt.Errorf("failed to read item %s: %w", item.ID, err)
 	}
 
+	contentStr := string(content)
+	title := textutils.ExtractTitleFromHTML(contentStr)
+
 	return &EpubReaderChapter{
 		Id:      item.ID,
-		Title:   "",
-		Content: string(content),
+		Title:   title,
+		Content: contentStr,
 	}, nil
 }
 

@@ -158,7 +158,7 @@ func (app *Application) run(ctx context.Context) error {
 		return err
 	}
 
-	chapters, err := app.ProcessChapters(ctx, rawChapters)
+	chapters, err := app.ProcessChapters(ctx, rawChapters, book.Metadata)
 	if err != nil {
 		return fmt.Errorf("failed to process chapters: %w", err)
 	}
@@ -220,10 +220,10 @@ func (app *Application) run(ctx context.Context) error {
 	return nil
 }
 
-func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubreader.EpubReaderChapter) ([]*epub.EpubChapter, error) {
+func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubreader.EpubReaderChapter, metadata *epub.EpubMetadata) ([]*epub.EpubChapter, error) {
 	processedChapters := make([]*epub.EpubChapter, 0, len(chapters))
 
-	chapterNumber := 1
+	chapterNumber := 0
 	for _, chapter := range chapters {
 		ch, err := epub.NewChapter(chapter.Id, chapter.Title, chapter.Content)
 		if err != nil || !ch.IsValid() {
@@ -248,7 +248,7 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 			continue
 		}
 
-		files, err := app.CreateChapterAudio(ctx, ch, chapterNumber)
+		files, err := app.CreateChapterAudio(ctx, ch, chapterNumber, metadata)
 		if err != nil {
 			return nil, fmt.Errorf("unable to create chapter audio for chapter %d: %w", chapterNumber, err)
 		}
@@ -279,20 +279,41 @@ func (app *Application) ProcessChapters(ctx context.Context, chapters []*epubrea
 	return processedChapters, nil
 }
 
-func (app *Application) CreateChapterAudio(ctx context.Context, chapter *epub.EpubChapter, chapterNumber int) ([]string, error) {
+func (app *Application) CreateChapterAudio(ctx context.Context, chapter *epub.EpubChapter, chapterNumber int, bookMetadata *epub.EpubMetadata) ([]string, error) {
 	text := textutils.ExtractParagraphsFromHTML(chapter.Content)
 	if len(text) == 0 {
 		return nil, fmt.Errorf("chapter does not have text")
 	}
 
-	// If the chapter doesn't have a proper title, create a simple one
-	if chapter.Title == "" {
-		chapter.Title = fmt.Sprintf("Chapter %d", chapterNumber)
+	// Store the original title for potential removal from content
+	originalTitle := chapter.Title
+
+	// Handle chapter titles differently based on chapter number
+	if chapterNumber == 0 {
+		app.logger.Printf("\n\n-------Processing Introduction-------")
+		chapter.Title = "Introduction"
+
+		text = []string{chapter.Title, fmt.Sprintf("%s by %s", bookMetadata.Title, bookMetadata.Author)}
 	} else {
-		// If we have a title, prepend chapter number only if it doesn't already contain it
-		if !strings.Contains(strings.ToLower(chapter.Title), "chapter") {
-			chapter.Title = fmt.Sprintf("Chapter %d: %s", chapterNumber, chapter.Title)
+		app.logger.Printf("\n\n-------Processing Chapter %d-------", chapterNumber)
+		// For subsequent chapters, ensure proper chapter numbering
+		if chapter.Title == "" {
+			chapter.Title = fmt.Sprintf("Chapter %d", chapterNumber)
+		} else {
+			// If we have a title, prepend chapter number only if it doesn't already contain it
+			if !strings.Contains(strings.ToLower(chapter.Title), "chapter") {
+				chapter.Title = fmt.Sprintf("Chapter %d: %s", chapterNumber, chapter.Title)
+			}
 		}
+
+		// Remove the original title from content if it appears as the first paragraph.
+		// For example, we make "Chapter 1: Title", and we don't want another paragraph with simply "Title", otherwise we have it spoken twice.
+		if originalTitle != "" && len(text) > 0 && strings.TrimSpace(text[0]) == strings.TrimSpace(originalTitle) {
+			text = text[1:]
+		}
+
+		// Prepend the chapter title as the first paragraph
+		text = append([]string{chapter.Title}, text...)
 	}
 
 	var files []string
