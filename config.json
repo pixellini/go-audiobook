@@ -1,11 +1,17 @@
 {
+  "verbose_logs": false,
   "epub": {
-    "path": "./examples/test/book.epub",
-    "cover_image": "./examples/test/cover.png",
-    "title": "Test Book",
-    "author": "Test Author",
-    "language": "en",
-    "publisher": "Test Publisher",
-    "description": "This is a test book for the audiobook generation."
+    "path": "./input/book.epub",
+    "cover_image": "./input/cover.png",
+    "title": "",
+    "author": "",
+    "language": "",
+    "publisher": "",
+    "description": ""
+  },
+  "model": {
+    "speaker_wav": "./input/speaker.wav",
+    "concurrency": 6,
+    "device": "cpu"
   }
 }
