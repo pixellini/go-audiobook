@@ -8,7 +8,6 @@ import (
 	"github.com/pixellini/go-audiobook/internal/config"
 	"github.com/pixellini/go-coqui"
 	"github.com/pixellini/go-coqui/models/tts"
-	"github.com/pixellini/go-coqui/models/vocoder"
 )
 
 type TTSservice interface {
@@ -24,10 +23,10 @@ type CoquiTTSService struct {
 func NewCoquiService(config *config.Config, outputDir string) (*CoquiTTSService, error) {
 	tts, err := coqui.New(
 		// coqui.WithModelPath(config.Model.Name),
-		coqui.WithModelId(tts.PresetXTTSv2),
-		coqui.WithSpeaker(config.Model.SpeakerWav),
-		// coqui.WithModelId(tts.PresetVITSVCTK),
-		// coqui.WithSpeakerIndex(config.Model.SpeakerIdx),
+		// coqui.WithModelId(tts.PresetXTTSv2),
+		// coqui.WithSpeaker(config.Model.SpeakerWav),
+		coqui.WithModelId(tts.PresetVITSVCTK),
+		coqui.WithSpeakerIndex(config.Model.SpeakerIdx),
 		coqui.WithDevice(config.Model.Device),
 		coqui.WithMaxRetries(int(config.Model.MaxRetries)),
 		coqui.WithOutputDir(outputDir),
@@ -47,12 +46,12 @@ func NewCoquiService(config *config.Config, outputDir string) (*CoquiTTSService,
 		)
 	}
 
-	if config.Vocoder.Name != "" {
-		tts.Configure(
-			coqui.WithVocoder(vocoder.PresetHifiganV2Blizzard2013),
-			coqui.WithVocoderLanguage(config.Vocoder.Language),
-		)
-	}
+	// if config.Vocoder.Name != "" {
+	// 	tts.Configure(
+	// 		coqui.WithVocoder(vocoder.PresetHifiganV2Blizzard2013),
+	// 		coqui.WithVocoderLanguage(config.Vocoder.Language),
+	// 	)
+	// }
 
 	return &CoquiTTSService{
 		tts:          tts,

@@ -1,8 +1,8 @@
 {
   "verbose_logs": false,
   "epub": {
-    "path": "./input/book.epub",
-    "cover_image": "./input/cover.png",
+    "path": "./examples/test/test.epub",
+    "cover_image": "./examples/test/cover.png",
     "title": "",
     "author": "",
     "language": "",
