@@ -1,0 +1,15 @@
+@mixin block {
+    display: block !important;
+}
+
+@mixin absolute-center {
+    display: absolute !important;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+@mixin full {
+    height: 100%;
+    width: 100%;
+}

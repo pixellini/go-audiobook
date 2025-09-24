@@ -1,0 +1,66 @@
+@use "functions/font-size" as fs;
+
+h1,h2,h3,h4,h5,h6,a,p,b,span,strong {
+    color: $c-font;
+}
+
+// Typography Scale - Systematic approach
+h1 {
+    @include fs.font-xxl;
+    @include mb(6);
+    line-height: 1.2;
+    font-weight: 700;
+}
+
+h2 {
+    @include fs.font-xl;
+    @include mb(5);
+    line-height: 1.25;
+    font-weight: 600;
+}
+
+h3 {
+    @include fs.font-lg;
+    @include mb(4);
+    line-height: 1.3;
+    font-weight: 600;
+}
+
+h4 {
+    @include fs.font-md;
+    @include mb(3);
+    line-height: 1.35;
+    font-weight: 500;
+}
+
+h5 {
+    @include fs.font-sm;
+    @include mb(3);
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+h6 {
+    @include fs.font-xs;
+    @include mb(2);
+    line-height: 1.4;
+    font-weight: 500;
+}
+
+p, span, a, strong, b {
+    @include fs.font-md;
+    line-height: 1.6;
+}
+
+p {
+    @include mb(4);
+    font-weight: 400;
+}
+
+span, a {
+    font-weight: 400;
+}
+
+strong, b {
+    font-weight: 600;
+}

@@ -1,0 +1,23 @@
+@use "sass:map";
+
+// Font size scale - based on modular scale
+$font-sizes: (
+    xs: 0.5rem,   // 8px
+    sm: 0.75rem,  // 12px
+    md: 1rem,      // 16px (base)
+    lg: 1.5rem,  // 24px
+    xl: 2.5rem,   // 40px
+    xxl: 4rem    // 64px
+) !default;
+
+// Helper function to get font size values
+@function fs($key) {
+    @return var(--fs-#{$key});
+}
+
+@mixin font-xs () { font-size: fs(xs); }
+@mixin font-sm () { font-size: fs(sm); }
+@mixin font-md () { font-size: fs(md); }
+@mixin font-lg () { font-size: fs(lg); }
+@mixin font-xl () { font-size: fs(xl); }
+@mixin font-xxl () { font-size: fs(xxl); }

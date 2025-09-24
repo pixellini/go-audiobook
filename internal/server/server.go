@@ -43,12 +43,12 @@ func (s *Server) StreamAudiobookCreation(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	progressChannel := make(chan progress.Progress, 10)
+	progressChannel := make(chan progress.Progress, 64)
 	app.SetProgressChannel(progressChannel)
 
 	go func() {
 		for prog := range progressChannel {
-			c.WriteJSON(map[string]interface{}{
+			_ = c.WriteJSON(map[string]interface{}{
 				"type":       "progress",
 				"step":       prog.Step,
 				"percentage": prog.Percentage,

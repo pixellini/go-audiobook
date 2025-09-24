@@ -1,0 +1,28 @@
+@use "functions/space";
+@use "functions/font-size" as fs;
+
+:root {
+    --font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+
+    // Generate space variables
+    @for $i from 1 through $max-iterations {
+        --s-#{$i}: #{$i * $space};
+    }
+
+    // Generate font size variables
+    @each $key, $value in fs.$font-sizes {
+        --fs-#{$key}: #{$value};
+    }
+
+    /* COLOURS */
+    --color-background: var(--p-slate-50);
+    --color-font: var(--p-slate-950);
+    --color-font-muted: var(--p-slate-500);
+}
+
+html.dark {
+    --color-background: var(--p-slate-950);
+    --color-font: var(--p-slate-50);
+}
+
+

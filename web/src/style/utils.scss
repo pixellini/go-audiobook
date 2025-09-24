@@ -1,0 +1,84 @@
+@use "functions/flex";
+@use "functions/space";
+
+@for $i from 1 through $max-iterations {
+    .p {
+        &-#{$i} {
+            padding: var(--s-#{$i})
+        }
+
+        &x-#{$i} {
+            padding: 0px var(--s-#{$i})
+        }
+        &y-#{$i} {
+            padding: var(--s-#{$i}) 0px
+        }
+
+        &t-#{$i} {
+            padding-top: var(--s-#{$i})
+        }
+        &r-#{$i} {
+            padding-right: var(--s-#{$i})
+        }
+        &b-#{$i} {
+            padding-bottom: var(--s-#{$i})
+        }
+        &l-#{$i} {
+            padding-right: var(--s-#{$i})
+        }
+    }
+
+    .m {
+        &-#{$i} {
+            margin: var(--s-#{$i})
+        }
+
+        &x-#{$i} {
+            margin: 0px var(--s-#{$i})
+        }
+        &y-#{$i} {
+            margin: var(--s-#{$i}) 0px
+        }
+
+        &t-#{$i} {
+            margin-top: var(--s-#{$i})
+        }
+        &r-#{$i} {
+            margin-right: var(--s-#{$i})
+        }
+        &b-#{$i} {
+            margin-bottom: var(--s-#{$i})
+        }
+        &l-#{$i} {
+            margin-right: var(--s-#{$i})
+        }
+    }
+} 
+
+.flex {
+    @include flex;
+
+    &-col {
+        flex-direction: column;
+    }
+
+    &-row {
+        flex-direction: row;
+    }
+
+    &-center {
+        @include flex-center;
+    }
+
+    &-between {
+        @include flex-between;
+    }
+}
+
+.block {
+    display: block !important;
+}
+
+.muted {
+    color: $c-font-muted;
+}

@@ -127,6 +127,8 @@ func (app *Application) run(ctx context.Context) error {
 
 	start := time.Now()
 
+	app.progress.Update("scanning_epub", 0, "Scanning EPUB", 0)
+
 	epubPath := app.config.Epub.Path
 	r, err := epubreader.NewGoEpubReaderService(epubPath)
 	if err != nil {
@@ -160,6 +162,7 @@ func (app *Application) run(ctx context.Context) error {
 
 	tempAudiobookFile := filepath.Join(app.cacheDir, "audiobook.wav")
 
+	app.progress.Update("building_metadata", 0, "Building metadata", 0)
 	metadata, err := app.BuildMetadataFile(book.Metadata, chapters)
 
 	if err != nil {
@@ -181,6 +184,7 @@ func (app *Application) run(ctx context.Context) error {
 
 	app.fileManager.Create(app.config.Output.Path)
 
+	app.progress.Update("create_audiobook", 0, "Creating audiobook file", 0)
 	// Create the M4B audiobook file.
 	err = app.audio.CreateAudiobook(
 		tempAudiobookFile,
@@ -267,7 +271,7 @@ func (app *Application) CreateChapterAudio(ctx context.Context, chapter *epub.Ep
 	// Store the original title for potential removal from content
 	originalTitle := chapter.Title
 
-	app.progress.Update("chapter_creation", 0, "Generating chapter...", chapterNumber)
+	app.progress.Update("chapter_creation", 0, "Generating chapter", chapterNumber)
 
 	// Handle chapter titles differently based on chapter number
 	if chapterNumber == 0 {

@@ -25,15 +25,22 @@ func (r *Reporter) SetCallback(callback func(step string, percentage float64, me
 }
 
 func (r *Reporter) Update(step string, percentage float64, message string, chapter int) {
+	if r.callback != nil {
+		r.callback(step, percentage, message, chapter)
+	}
 	if r.channel != nil {
+		p := Progress{Step: step, Percentage: percentage, Message: message, Chapter: chapter}
 		select {
-		case r.channel <- Progress{
-			Step:       step,
-			Percentage: percentage,
-			Message:    message,
-			Chapter:    chapter,
-		}:
+		case r.channel <- p:
 		default:
+			select {
+			case <-r.channel:
+			default:
+			}
+			select {
+			case r.channel <- p:
+			default:
+			}
 		}
 	}
 }

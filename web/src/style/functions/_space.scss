@@ -1,0 +1,40 @@
+@use "sass:map";
+
+// If 1 rem is 16px, 0.25rem is 4px
+$space: 0.25rem;
+$max-iterations: 20;
+
+// Helper function to get spacing values
+@function space($key) {
+    @return var(--s-#{$key});
+}
+
+// Padding mixins
+@mixin p($space) { padding: space($space); }
+@mixin px($space) { 
+    padding-left: space($space);
+    padding-right: space($space);
+}
+@mixin py($space) { 
+    padding-top: space($space);
+    padding-bottom: space($space);
+}
+@mixin pt($space) { padding-top: space($space); }
+@mixin pr($space) { padding-right: space($space); }
+@mixin pb($space) { padding-bottom: space($space); }
+@mixin pl($space) { padding-left: space($space); }
+
+// Margin mixins
+@mixin m($space) { margin: space($space); }
+@mixin mx($space) { 
+    margin-left: space($space);
+    margin-right: space($space);
+}
+@mixin my($space) { 
+    margin-top: space($space);
+    margin-bottom: space($space);
+}
+@mixin mt($space) { margin-top: space($space); }
+@mixin mr($space) { margin-right: space($space); }
+@mixin mb($space) { margin-bottom: space($space); }
+@mixin ml($space) { margin-left: space($space); }
